@@ -824,7 +824,8 @@ def main(argv):
         else:
             cmap = plt.get_cmap(args.colormap)
 
-    if args.action == "view":
+    # Easter egg! I keep typing 'show' instead of 'view' so accept both
+    if args.action in ("view", "show"):
         if cmap is None:
             sys.exit("Please specify a colormap")
         v = viscm(cmap)
