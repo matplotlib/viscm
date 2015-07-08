@@ -6,7 +6,7 @@ This is a little tool for analyzing colormaps and creating new colormaps.
 Try::
 
   $ pip install viscm
-  $ python -m viscm show jet
+  $ python -m viscm view jet
   $ python -m viscm edit
 
 Downloads:
