@@ -5,22 +5,18 @@ import os.path
 import numpy as np
 
 # Must be one line or PyPI will cut it off
-DESC = ("Compute perceptual similarity between sRGB colors according to the "
-        "CAM02-UCS formula given by Luo et al (2006)")
+DESC = ("A colormap tool")
 
 LONG_DESC = open("README.rst").read()
 
-# defines __version__
-exec(open("pycam02ucs/version.py").read())
-
 setup(
-    name="pycam02ucs",
-    version=__version__,
+    name="viscm",
+    version="0.1",
     description=DESC,
     long_description=LONG_DESC,
-    author="Nathaniel J. Smith",
-    author_email="njs@pobox.com",
-    url="https://github.com/njsmith/pycam02ucs",
+    author="Nathaniel J. Smith, Stefan van der Walt",
+    author_email="njs@pobox.com, stefanv@berkeley.edu",
+    url="https://github.com/bids/viscm",
     license="MIT",
     classifiers =
       [ "Development Status :: 3 - Alpha",
@@ -31,6 +27,6 @@ setup(
         "Programming Language :: Python :: 3",
         ],
     packages=find_packages(),
-    install_requires=["numpy"],
-    package_data={'pycam02ucs': ['cm/examples/*']},
+    install_requires=["numpy", "matplotlib", "colorspacious"],
+    package_data={'viscm': ['examples/*']},
 )

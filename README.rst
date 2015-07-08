@@ -1,77 +1,28 @@
-pycam02ucs
-==========
+viscm
+=====
 
-.. image:: https://travis-ci.org/njsmith/pycam02ucs.png?branch=master
-   :target: https://travis-ci.org/njsmith/pycam02ucs
-.. image:: https://coveralls.io/repos/njsmith/pycam02ucs/badge.png?branch=master
-   :target: https://coveralls.io/r/njsmith/pycam02ucs?branch=master
+This is a little tool for analyzing colormaps and creating new colormaps.
 
-This is an powerful, accurate, and easy-to-use library for performing
-colorspace conversions.
+Try::
 
-In addition to the most common standard colorspaces (sRGB, XYZ, xyY,
-CIELab, CIELCh), we also include: color vision deficiency ("color
-blindness") simulations using the approach of Machado et al (2009); a
-complete implementation of `CIECAM02
-<https://en.wikipedia.org/wiki/CIECAM02>`_; and the perceptually
-uniform CAM02-UCS / CAM02-LCD / CAM02-SCD spaces proposed by Luo et al
-(2006).
-
-To use it, simply write::
-
-  from pycam02ucs import cspace_convert
-
-  Jp, ap, bp = cspace_convert([64, 128, 255], "sRGB255", "CAM02-UCS")
-
-This converts an sRGB value (represented as integers between 0-255) to
-CAM02-UCS J'a'b' coordinates (by default, assuming standard sRGB
-viewing conditions). This requires passing through 4 intermediate
-colorspaces; ``cspace_convert`` automatically finds the optimal route
-and applies all conversions in sequence:
-
-This function also of course accepts arbitrary NumPy arrays, so
-converting a whole image is just as easy as converting a single value.
-
-Documentation:
-  TODO
-
-Installation:
-  ``pip install .``
+  $ pip install viscm
+  $ python -m viscm show jet
+  $ python -m viscm edit
 
 Downloads:
-  TODO
+  https://pypi.python.org/pypi/viscm/
 
 Code and bug tracker:
-  https://github.com/njsmith/pycam02ucs
+  https://github.com/bids/viscm
 
 Contact:
-  Nathaniel J. Smith <njs@pobox.com>
+  Nathaniel J. Smith <njs@pobox.com> and Stefan van der Walt <stefanv@berkeley.edu>
 
 Dependencies:
   * Python 2.6+, or 3.3+
+  * `colorspacious <https://pypi.python.org/pypi/colorspacious>`_
+  * Matplotlib
   * NumPy
-
-Developer dependencies (only needed for hacking on source):
-  * nose: needed to run tests
 
 License:
   MIT, see LICENSE.txt for details.
-
-References:
-
-  Luo, M. R., Cui, G., & Li, C. (2006). Uniform colour spaces based on
-  CIECAM02 colour appearance model. Color Research & Application, 31(4),
-  320–330. doi:10.1002/col.20227
-
-  Machado, G. M., Oliveira, M. M., & Fernandes, L. A. (2009). A
-  physiologically-based model for simulation of color vision
-  deficiency. Visualization and Computer Graphics, IEEE Transactions on,
-  15(6), 1291–1298. http://www.inf.ufrgs.br/~oliveira/pubs_files/CVD_Simulation/CVD_Simulation.html
-
-Other Python packages with similar functionality that you might also
-want to check out:
-
-* ``colour``: http://colour-science.org/
-* ``colormath``: http://python-colormath.readthedocs.org/
-* ``ciecam02``: https://pypi.python.org/pypi/ciecam02/
-* ``ColorPy``: http://markkness.net/colorpy/ColorPy.html

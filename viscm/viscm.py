@@ -1,5 +1,6 @@
-# This file is part of pycam02ucs
-# Copyright (C) 2014 Nathaniel Smith <njs@pobox.com>
+# This file is part of viscm
+# Copyright (C) 2015 Nathaniel Smith <njs@pobox.com>
+# Copyright (C) 2015 Stefan van der Walt <stefanv@berkeley.edu>
 # See file LICENSE.txt for license information.
 
 # Simple script using CIECAM02 and CAM02-UCS to visualize properties of a
@@ -17,8 +18,8 @@ from matplotlib.widgets import Button, Slider
 import matplotlib.colors
 from matplotlib.colors import LinearSegmentedColormap
 
-from pycam02ucs import cspace_converter
-from pycam02ucs.cm.minimvc import Trigger
+from colorspacious import cspace_converter
+from .minimvc import Trigger
 
 # Our preferred space (mostly here so we can easily tweak it when curious)
 UNIFORM_SPACE = "CAM02-UCS"
@@ -404,7 +405,7 @@ def _viscm_editor_axes():
 
 class viscm_editor(object):
     def __init__(self, min_Jp=15, max_Jp=95, xp=None, yp=None):
-        from pycam02ucs.cm.bezierbuilder import BezierModel, BezierBuilder
+        from .bezierbuilder import BezierModel, BezierBuilder
 
         axes = _viscm_editor_axes()
 
@@ -429,8 +430,8 @@ class viscm_editor(object):
         ax_jp_max = plt.axes([0.1, 0.15, 0.5, 0.03], axisbg=axcolor)
         ax_jp_max.imshow(np.linspace(0, 100, 101).reshape(1, -1), cmap='gray')
 
-        self.jp_min_slider = Slider(ax_jp_min, r"$J/K_\mathrm{min}$", 0, 100, valinit=min_Jp)
-        self.jp_max_slider = Slider(ax_jp_max, r"$J/K_\mathrm{max}$", 0, 100, valinit=max_Jp)
+        self.jp_min_slider = Slider(ax_jp_min, r"$J'_\mathrm{min}$", 0, 100, valinit=min_Jp)
+        self.jp_max_slider = Slider(ax_jp_max, r"$J'_\mathrm{max}$", 0, 100, valinit=max_Jp)
 
         self.jp_min_slider.on_changed(self._jp_update)
         self.jp_max_slider.on_changed(self._jp_update)
@@ -474,6 +475,11 @@ class viscm_editor(object):
         self.cmap_highlighter = HighlightPointBuilder(
             axes['cm'],
             self.highlight_point_model)
+
+        print("Click sliders at bottom to change min/max lightness")
+        print("Click on colorbar to adjust gamut view")
+        print("Click-drag to move control points, ")
+        print("  shift-click to add, control-click to delete")
 
     def plot_3d_gamut(self, event):
         fig, ax = plt.subplots(subplot_kw=dict(projection='3d'))
@@ -536,7 +542,7 @@ class viscm_editor(object):
     def show_viscm(self, event):
         cm = LinearSegmentedColormap.from_list(
             'test_cm',
-            self.cmap_model.get_sRGB(num=64)[0])
+            self.cmap_model.get_sRGB(num=256)[0])
         self.prop_windows.append(viscm(cm, name='test_cm'))
         plt.show()
 
@@ -766,17 +772,17 @@ def main(argv):
     import argparse
 
     # Usage:
-    #   python -m pycam02ucs.cm.viscm
-    #   python -m pycam02ucs.cm.viscm edit
-    #   python -m pycam02ucs.cm.viscm edit <file.py>
+    #   python -m viscm
+    #   python -m viscm edit
+    #   python -m viscm edit <file.py>
     #      (file.py must define some appropriate globals)
-    #   python -m pycam02ucs.cm.viscm view <file.py>
+    #   python -m viscm view <file.py>
     #      (file.py must define a global named "test_cm")
-    #   python -m pycam02ucs.cm.viscm view "matplotlib builtin colormap"
-    #   python -m pycam02ucs.cm.viscm view --save=foo.png ...
+    #   python -m viscm view "matplotlib builtin colormap"
+    #   python -m viscm view --save=foo.png ...
 
     parser = argparse.ArgumentParser(
-        prog="python -m {}".format(__file__),
+        prog="python -m viscm",
         description="A colormap tool.",
     )
     parser.add_argument("action", metavar="ACTION",
@@ -828,7 +834,8 @@ def main(argv):
     elif args.action == "edit":
         if params is None:
             sys.exit("Sorry, I don't know how to edit the specified colormap")
-        viscm_editor(**params)
+        # Hold a reference so it doesn't get GC'ed
+        v = viscm_editor(**params)
     else:
         raise RuntimeError("can't happen")
 
