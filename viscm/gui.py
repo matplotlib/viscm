@@ -787,7 +787,7 @@ def main(argv):
     )
     parser.add_argument("action", metavar="ACTION",
                         help="'edit' or 'view'",
-                        choices=["edit", "view"],
+                        choices=["edit", "view", "show"],
                         default="edit",
                         nargs="?")
     parser.add_argument("colormap", metavar="COLORMAP",
