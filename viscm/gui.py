@@ -344,8 +344,8 @@ def sRGB_gamut_patch(resolution=20):
 
 def sRGB_gamut_Jp_slice(Jp,
                         ap_lim=(-50, 50), bp_lim=(-50, 50), resolution=200):
-    ap_grid, bp_grid = np.mgrid[ap_lim[0] : ap_lim[1] : resolution * 1j,
-                                bp_lim[0] : bp_lim[1] : resolution * 1j]
+    bp_grid, ap_grid = np.mgrid[bp_lim[0] : bp_lim[1] : resolution * 1j,
+                                ap_lim[0] : ap_lim[1] : resolution * 1j]
     Jp_grid = Jp * np.ones((resolution, resolution))
     Jpapbp = np.concatenate((Jp_grid[:, :, np.newaxis],
                              ap_grid[:, :, np.newaxis],
