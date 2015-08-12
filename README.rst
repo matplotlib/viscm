@@ -9,6 +9,10 @@ Try::
   $ python -m viscm view jet
   $ python -m viscm edit
 
+There is some information available about how to interpret the
+resulting visualizations and use the editor tool `on this website
+<https://bids.github.io/colormap/>`_.
+
 Downloads:
   https://pypi.python.org/pypi/viscm/
 
