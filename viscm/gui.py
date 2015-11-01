@@ -492,7 +492,7 @@ class viscm_editor(object):
         import textwrap
 
         template = textwrap.dedent('''
-        from matplotlib.colors import LinearSegmentedColormap
+        from matplotlib.colors import ListedColormap
         from numpy import nan, inf
 
         # Used to reconstruct the colormap in pycam02ucs.cm.viscm
@@ -503,7 +503,7 @@ class viscm_editor(object):
 
         cm_data = {array_list}
 
-        test_cm = LinearSegmentedColormap.from_list(__file__, cm_data)
+        test_cm = ListedColormap(cm_data, name=__file__)
 
 
         if __name__ == "__main__":
@@ -511,10 +511,10 @@ class viscm_editor(object):
             import numpy as np
 
             try:
-                from pycam02ucs.cm.viscm import viscm
+                from viscm import viscm
                 viscm(test_cm)
             except ImportError:
-                print("pycam02ucs not found, falling back on simple display")
+                print("viscm not found, falling back on simple display")
                 plt.imshow(np.linspace(0, 100, 256)[None, :], aspect='auto',
                            cmap=test_cm)
             plt.show()
@@ -522,8 +522,9 @@ class viscm_editor(object):
 
         rgb, _ = self.cmap_model.get_sRGB(num=256)
         with open('/tmp/new_cm.py', 'w') as f:
-            array_list = np.array_repr(rgb, max_line_width=78)
-            array_list = array_list.replace('array(', '')[:-1]
+            array_list = np.array2string(rgb, max_line_width=78,
+                                         prefix='cm_data = ',
+                                         separator=',')
 
             xp, yp = self.cmap_model.bezier_model.get_control_points()
 
