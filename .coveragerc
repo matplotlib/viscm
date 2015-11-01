@@ -1,6 +1,6 @@
 [run]
 branch=True
-source=pycam02ucs
+source=viscm
 omit=
   setup.py
 
