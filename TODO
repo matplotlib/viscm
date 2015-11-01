@@ -1,8 +1,0 @@
-* new name
-* split out viscm
-* upload to pypi
-* tests for CVD
-* tests for deltaEp
-* error tests in ciecam02
-* error and some calling option tests in conversion
-* docs
