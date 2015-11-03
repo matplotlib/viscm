@@ -18,11 +18,32 @@ from matplotlib.widgets import Button, Slider
 import matplotlib.colors
 from matplotlib.colors import LinearSegmentedColormap
 
-from colorspacious import cspace_converter
+from colorspacious import (cspace_converter, cspace_convert,
+                           CIECAM02Space, CIECAM02Surround, CAM02UCS)
 from .minimvc import Trigger
 
-# Our preferred space (mostly here so we can easily tweak it when curious)
-UNIFORM_SPACE = "CAM02-UCS"
+# The correct L_A value for the standard sRGB viewing conditions is:
+#   (64 / np.pi) / 5
+# Due to an error in our color conversion code, the matplotlib colormaps were
+# designed using the assumption that they would be viewed with an L_A value of
+#   (64 / np.pi) * 5
+# (i.e., 125x brighter ambient illumination than appropriate). It turns out
+# that when all is said and done this has negligible effect on the uniformity
+# of the resulting colormaps (phew), BUT fixing the bug has the effect of
+# somewhat shrinking the sRGB color solid as projected into CAM02-UCS
+# space. This means that the bezier points for existing colormaps (like the
+# matplotlib ones) are in the wrong place. We can reproduce the original
+# colormaps from these points by using this buggy_CAM02UCS space as our
+# uniform space:
+buggy_sRGB_viewing_conditions = CIECAM02Space(
+    XYZ100_w="D65",
+    Y_b=20,
+    L_A=(64 / np.pi) * 5,  # bug: should be / 5
+    surround=CIECAM02Surround.AVERAGE)
+buggy_CAM02UCS = {"name": "CAM02-UCS",
+                  "ciecam02_space": buggy_sRGB_viewing_conditions,
+                  }
+
 GREYSCALE_CONVERSION_SPACE = "JCh"
 
 _sRGB1_to_JCh = cspace_converter("sRGB1", GREYSCALE_CONVERSION_SPACE)
@@ -31,9 +52,6 @@ def to_greyscale(sRGB1):
     JCh = _sRGB1_to_JCh(sRGB1)
     JCh[..., 1] = 0
     return _JCh_to_sRGB1(JCh)
-
-_sRGB1_to_uniform = cspace_converter("sRGB1", UNIFORM_SPACE)
-_uniform_to_sRGB1 = cspace_converter(UNIFORM_SPACE, "sRGB1")
 
 _deuter50_space = {"name": "sRGB1+CVD",
                    "cvd_type": "deuteranomaly",
@@ -142,11 +160,14 @@ def _vis_axes():
 # reduces quantization/aliasing artifacts (esp. in the perceptual deltas
 # plot).
 class viscm(object):
-    def __init__(self, cm, name=None, N=256, N_dots=50, show_gamut=False):
+    def __init__(self, cm, uniform_space,
+                 name=None, N=256, N_dots=50, show_gamut=False):
         if isinstance(cm, str):
             cm = plt.get_cmap(cm)
         if name is None:
             name = cm.name
+
+        self._sRGB1_to_uniform = cspace_converter("sRGB1", uniform_space)
 
         self.fig = plt.figure()
         self.fig.suptitle("Colormap evaluation: %s" % (name,), fontsize=24)
@@ -169,10 +190,11 @@ class viscm(object):
                     verticalalignment="bottom",
                     transform=ax.transAxes)
 
-        Jpapbp = _sRGB1_to_uniform(RGB)
+        Jpapbp = self._sRGB1_to_uniform(RGB)
 
         ax = axes['deltas']
         local_deltas = N * np.sqrt(np.sum((Jpapbp[:-1, :] - Jpapbp[1:, :]) ** 2, axis=-1))
+        print("perceptual delta peak-to-peak: %0.2f" % (np.ptp(local_deltas),))
         ax.plot(x[1:], local_deltas)
         arclength = np.sum(local_deltas) / N
         label(ax, "Perceptual deltas (total: %0.2f)" % (arclength,))
@@ -231,7 +253,7 @@ class viscm(object):
 
         ax = axes['gamut']
         ax.plot(Jpapbp[:, 1], Jpapbp[:, 2], Jpapbp[:, 0])
-        Jpapbp_dots = _sRGB1_to_uniform(RGB_dots)
+        Jpapbp_dots = self._sRGB1_to_uniform(RGB_dots)
         ax.scatter(Jpapbp_dots[:, 1],
                    Jpapbp_dots[:, 2],
                    Jpapbp_dots[:, 0],
@@ -239,7 +261,7 @@ class viscm(object):
                    s=80)
 
         # Draw a wireframe indicating the sRGB gamut
-        self.gamut_patch = sRGB_gamut_patch()
+        self.gamut_patch = sRGB_gamut_patch(uniform_space)
         # That function returns a patch where each face is colored to match
         # the represented colors. For present purposes we want something
         # less... colorful.
@@ -299,7 +321,7 @@ class viscm(object):
         axes['image0'].set_title("Sample images")
         axes['image0-cb'].set_title("Moderate deuter.")
 
-def sRGB_gamut_patch(resolution=20):
+def sRGB_gamut_patch(uniform_space, resolution=20):
     step = 1.0 / resolution
     sRGB_quads = []
     sRGB_values = []
@@ -333,7 +355,7 @@ def sRGB_gamut_patch(resolution=20):
     # work around colorspace transform bugginess in handling high-dim
     # arrays
     sRGB_quads_2d = sRGB_quads.reshape((-1, 3))
-    Jpapbp_quads_2d = _sRGB1_to_uniform(sRGB_quads_2d)
+    Jpapbp_quads_2d = cspace_convert(sRGB_quads_2d, "sRGB1", uniform_space)
     Jpapbp_quads = Jpapbp_quads_2d.reshape((-1, 4, 3))
     gamut_patch = mpl_toolkits.mplot3d.art3d.Poly3DCollection(
         Jpapbp_quads[:, :, [1, 2, 0]])
@@ -342,7 +364,7 @@ def sRGB_gamut_patch(resolution=20):
     return gamut_patch
 
 
-def sRGB_gamut_Jp_slice(Jp,
+def sRGB_gamut_Jp_slice(Jp, uniform_space,
                         ap_lim=(-50, 50), bp_lim=(-50, 50), resolution=200):
     bp_grid, ap_grid = np.mgrid[bp_lim[0] : bp_lim[1] : resolution * 1j,
                                 ap_lim[0] : ap_lim[1] : resolution * 1j]
@@ -351,7 +373,7 @@ def sRGB_gamut_Jp_slice(Jp,
                              ap_grid[:, :, np.newaxis],
                              bp_grid[:, :, np.newaxis]),
                             axis=2)
-    sRGB = _uniform_to_sRGB1(Jpapbp)
+    sRGB = cspace_convert(Jpapbp, uniform_space, "sRGB1")
     sRGBA = np.concatenate((sRGB, np.ones(sRGB.shape[:2] + (1,))),
                            axis=2)
     sRGBA[np.any((sRGB < 0) | (sRGB > 1), axis=-1)] = [0, 0, 0, 0]
@@ -369,9 +391,11 @@ def draw_pure_hue_angles(ax):
         ax.plot([0, x * 1000], [0, y * 1000], color + "--")
 
 
-def draw_sRGB_gamut_Jp_slice(ax, Jp, ap_lim=(-50, 50), bp_lim=(-50, 50),
+def draw_sRGB_gamut_Jp_slice(ax, Jp, uniform_space,
+                             ap_lim=(-50, 50), bp_lim=(-50, 50),
                              **kwargs):
-    sRGB = sRGB_gamut_Jp_slice(Jp, ap_lim=ap_lim, bp_lim=bp_lim, **kwargs)
+    sRGB = sRGB_gamut_Jp_slice(Jp, uniform_space,
+                               ap_lim=ap_lim, bp_lim=bp_lim, **kwargs)
     im = ax.imshow(sRGB, aspect="equal",
                    extent=ap_lim + bp_lim, origin="lower")
     draw_pure_hue_angles(ax)
@@ -404,7 +428,7 @@ def _viscm_editor_axes():
 
 
 class viscm_editor(object):
-    def __init__(self, min_Jp=15, max_Jp=95, xp=None, yp=None):
+    def __init__(self, uniform_space, min_Jp=15, max_Jp=95, xp=None, yp=None):
         from .bezierbuilder import BezierModel, BezierBuilder
 
         axes = _viscm_editor_axes()
@@ -457,12 +481,14 @@ class viscm_editor(object):
         self.bezier_model = BezierModel(xp, yp)
         self.cmap_model = BezierCMapModel(self.bezier_model,
                                           self.jp_min_slider.val,
-                                          self.jp_max_slider.val)
+                                          self.jp_max_slider.val,
+                                          uniform_space)
         self.highlight_point_model = HighlightPointModel(self.cmap_model, 0.5)
 
         self.bezier_builder = BezierBuilder(axes['bezier'], self.bezier_model)
         self.bezier_gamut_viewer = GamutViewer2D(axes['bezier'],
-                                                 self.highlight_point_model)
+                                                 self.highlight_point_model,
+                                                 uniform_space)
         tmp = HighlightPoint2DView(axes['bezier'],
                                    self.highlight_point_model)
         self.bezier_highlight_point_view = tmp
@@ -559,11 +585,12 @@ class viscm_editor(object):
         self.cmap_model.set_Jp_minmax(smallest, largest)
 
 class BezierCMapModel(object):
-    def __init__(self, bezier_model, min_Jp, max_Jp):
+    def __init__(self, bezier_model, min_Jp, max_Jp, uniform_space):
         self.bezier_model = bezier_model
         self.min_Jp = min_Jp
         self.max_Jp = max_Jp
         self.trigger = Trigger()
+        self.uniform_to_sRGB1 = cspace_converter(uniform_space, "sRGB1")
 
         self.bezier_model.trigger.add_callback(self.trigger.fire)
 
@@ -583,7 +610,7 @@ class BezierCMapModel(object):
     def get_sRGB(self, num=200):
         # Return sRGB and out-of-gamut mask
         Jp, ap, bp = self.get_Jpapbp(num=num)
-        sRGB = _uniform_to_sRGB1(np.column_stack((Jp, ap, bp)))
+        sRGB = self.uniform_to_sRGB1(np.column_stack((Jp, ap, bp)))
         oog = np.any((sRGB > 1) | (sRGB < 0), axis=-1)
         sRGB[oog, :] = np.nan
         return sRGB, oog
@@ -680,12 +707,13 @@ class HighlightPointBuilder(object):
 
 
 class GamutViewer2D(object):
-    def __init__(self, ax, highlight_point_model,
+    def __init__(self, ax, highlight_point_model, uniform_space,
                  ap_lim=(-50, 50), bp_lim=(-50, 50)):
         self.ax = ax
         self.highlight_point_model = highlight_point_model
         self.ap_lim = ap_lim
         self.bp_lim = bp_lim
+        self.uniform_space = uniform_space
 
         self.bgcolors = {"light": (0.9, 0.9, 0.9),
                          "dark": (0.1, 0.1, 0.1)}
@@ -708,7 +736,8 @@ class GamutViewer2D(object):
         if not (low <= Jp <= high):
             self.bg = self.bg_opposites[self.bg]
             self.ax.set_axis_bgcolor(self.bgcolors[self.bg])
-        sRGB = sRGB_gamut_Jp_slice(Jp, self.ap_lim, self.bp_lim)
+        sRGB = sRGB_gamut_Jp_slice(Jp, self.uniform_space,
+                                   self.ap_lim, self.bp_lim)
         self.image.set_data(sRGB)
 
 
@@ -796,6 +825,17 @@ def main(argv):
                         help="A .py file saved from the editor, or "
                              "the name of a matplotlib builtin colormap",
                         nargs="?")
+    parser.add_argument("--uniform-space", metavar="SPACE",
+                        default="CAM02-UCS",
+                        dest="uniform_space",
+                        help="The perceptually uniform space to use. Usually "
+                        "you should leave this alone. You can pass 'CIELab' "
+                        "if you're curious how uniform some colormap is in "
+                        "CIELab space. You can pass 'buggy-CAM02-UCS' if "
+                        "you're trying to reproduce the matplotlib colormaps "
+                        "(which turn out to have had a small bug in the "
+                        "assumed sRGB viewing conditions) from their bezier "
+                        "curves.")
     parser.add_argument("--save", metavar="FILE",
                         default=None,
                         help="Immediately save visualization to a file (view-mode only).")
@@ -825,11 +865,14 @@ def main(argv):
         else:
             cmap = plt.get_cmap(args.colormap)
 
+    uniform_space = args.uniform_space
+    if uniform_space == "buggy-CAM02-UCS":
+        uniform_space = buggy_CAM02UCS
     # Easter egg! I keep typing 'show' instead of 'view' so accept both
     if args.action in ("view", "show"):
         if cmap is None:
             sys.exit("Please specify a colormap")
-        v = viscm(cmap)
+        v = viscm(cmap, uniform_space)
         if args.save is not None:
             v.fig.set_size_inches(20, 12)
             v.fig.savefig(args.save)
@@ -837,7 +880,7 @@ def main(argv):
         if params is None:
             sys.exit("Sorry, I don't know how to edit the specified colormap")
         # Hold a reference so it doesn't get GC'ed
-        v = viscm_editor(**params)
+        v = viscm_editor(uniform_space, **params)
     else:
         raise RuntimeError("can't happen")
 
