@@ -192,13 +192,16 @@ class viscm(object):
 
         Jpapbp = self._sRGB1_to_uniform(RGB)
 
+        def delta_ymax(values):
+            return max(np.max(values) * 1.1, 0)
+
         ax = axes['deltas']
         local_deltas = N * np.sqrt(np.sum((Jpapbp[:-1, :] - Jpapbp[1:, :]) ** 2, axis=-1))
         print("perceptual delta peak-to-peak: %0.2f" % (np.ptp(local_deltas),))
         ax.plot(x[1:], local_deltas)
         arclength = np.sum(local_deltas) / N
         label(ax, "Perceptual deltas (total: %0.2f)" % (arclength,))
-        ax.set_ylim(0, ax.get_ylim()[1])
+        ax.set_ylim(-delta_ymax(-local_deltas), delta_ymax(local_deltas))
         ax.get_xaxis().set_visible(False)
 
         ax = axes['cmap-greyscale']
@@ -215,6 +218,7 @@ class viscm(object):
               "Perceptual lightness deltas (total: %0.2f)"
               % (np.sum(np.abs(lightness_deltas)) / N,))
         #ax.set_ylim(0, ax.get_ylim()[1])
+        ax.set_ylim(-delta_ymax(-lightness_deltas), delta_ymax(lightness_deltas))
         ax.get_xaxis().set_visible(False)
 
         # ax = axes['lightness']
