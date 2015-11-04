@@ -160,7 +160,7 @@ def _vis_axes():
 # reduces quantization/aliasing artifacts (esp. in the perceptual deltas
 # plot).
 class viscm(object):
-    def __init__(self, cm, uniform_space,
+    def __init__(self, cm, uniform_space="CAM02-UCS",
                  name=None, N=256, N_dots=50, show_gamut=False):
         if isinstance(cm, str):
             cm = plt.get_cmap(cm)
@@ -447,7 +447,8 @@ def _viscm_editor_axes():
 
 
 class viscm_editor(object):
-    def __init__(self, uniform_space, min_Jp=15, max_Jp=95, xp=None, yp=None):
+    def __init__(self, uniform_space="CAM02-UCS",
+                 min_Jp=15, max_Jp=95, xp=None, yp=None):
         from .bezierbuilder import BezierModel, BezierBuilder
 
         axes = _viscm_editor_axes()
@@ -891,7 +892,7 @@ def main(argv):
     if args.action in ("view", "show"):
         if cmap is None:
             sys.exit("Please specify a colormap")
-        v = viscm(cmap, uniform_space)
+        v = viscm(cmap, uniform_space=uniform_space)
         if args.save is not None:
             v.fig.set_size_inches(20, 12)
             v.fig.savefig(args.save)
@@ -899,7 +900,7 @@ def main(argv):
         if params is None:
             sys.exit("Sorry, I don't know how to edit the specified colormap")
         # Hold a reference so it doesn't get GC'ed
-        v = viscm_editor(uniform_space, **params)
+        v = viscm_editor(uniform_space=uniform_space, **params)
     else:
         raise RuntimeError("can't happen")
 
