@@ -541,7 +541,7 @@ class viscm_editor(object):
         from matplotlib.colors import ListedColormap
         from numpy import nan, inf
 
-        # Used to reconstruct the colormap in pycam02ucs.cm.viscm
+        # Used to reconstruct the colormap in viscm
         parameters = {{'xp': {xp},
                       'yp': {yp},
                       'min_Jp': {min_Jp},
