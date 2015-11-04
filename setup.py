@@ -11,7 +11,7 @@ LONG_DESC = open("README.rst").read()
 
 setup(
     name="viscm",
-    version="0.3",
+    version="0.4",
     description=DESC,
     long_description=LONG_DESC,
     author="Nathaniel J. Smith, Stefan van der Walt",
