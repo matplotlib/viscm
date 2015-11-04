@@ -480,23 +480,15 @@ class viscm_editor(object):
         self.jp_min_slider.on_changed(self._jp_update)
         self.jp_max_slider.on_changed(self._jp_update)
 
-        # This is my favorite set of control points so far (just from playing
-        # around with things):
-        #   min_Jp = 15
-        #   max_Jp = 95
-        #   xp =
-        #     [-4, 27.041103603603631, 84.311067635550557, 12.567076579094476, -9.6]
-        #   yp =
-        #     [-34, -41.447876447876524, 36.28563443264386, 25.357741755170423, 41]
-        # -- njs, 2015-04-05
-
         if xp is None:
-            xp = [-4, 38.289146128951984, 52.1923711457504,
-                  39.050944362271053, 18.60872492130315, -9.6]
+            xp = [-2.0591553836234482, 59.377014829142524,
+                  43.552546744036135, 4.7670857511283202,
+                  -9.5059638942617539]
 
         if yp is None:
-            yp = [-34, -34.34528254916614, -21.594701710471412,
-                  31.701084689194829, 29.510846891948262, 41]
+            yp = [-25.664893617021221, -21.941489361702082,
+                  38.874113475177353, 20.567375886524871,
+                  32.047872340425585]
 
         self.bezier_model = BezierModel(xp, yp)
         self.cmap_model = BezierCMapModel(self.bezier_model,
