@@ -189,6 +189,11 @@ class viscm(object):
                     horizontalalignment="right",
                     verticalalignment="bottom",
                     transform=ax.transAxes)
+        def title(ax, s):
+            ax.text(0.98, 0.98, s,
+                    horizontalalignment="right",
+                    verticalalignment="top",
+                    transform=ax.transAxes)
 
         Jpapbp = self._sRGB1_to_uniform(RGB)
 
@@ -197,10 +202,14 @@ class viscm(object):
 
         ax = axes['deltas']
         local_deltas = N * np.sqrt(np.sum((Jpapbp[:-1, :] - Jpapbp[1:, :]) ** 2, axis=-1))
-        print("perceptual delta peak-to-peak: %0.2f" % (np.ptp(local_deltas),))
+        #print("perceptual delta peak-to-peak: %0.2f" % (np.ptp(local_deltas),))
         ax.plot(x[1:], local_deltas)
         arclength = np.sum(local_deltas) / N
-        label(ax, "Perceptual deltas (total: %0.2f)" % (arclength,))
+        rmse = np.std(local_deltas)
+        title(ax, "Perceptual deltas")
+        label(ax,
+              "Length: %0.1f\nRMS deviation from flat: %0.1f (%0.1f%%)"
+              % (arclength, rmse, 100 * rmse / arclength))
         ax.set_ylim(-delta_ymax(-local_deltas), delta_ymax(local_deltas))
         ax.get_xaxis().set_visible(False)
 
@@ -214,9 +223,15 @@ class viscm(object):
         ax.axhline(0, linestyle="--", color="grey")
         lightness_deltas = N * np.diff(Jpapbp[:, 0])
         ax.plot(x[1:], lightness_deltas)
+        title(ax,
+              "Perceptual lightness deltas")
+        lightness_arclength = np.sum(np.abs(lightness_deltas)) / N
+        lightness_rmse = np.std(lightness_deltas)
         label(ax,
-              "Perceptual lightness deltas (total: %0.2f)"
-              % (np.sum(np.abs(lightness_deltas)) / N,))
+              "Length: %0.1f\nRMS deviation from flat: %0.1f (%0.1f%%)"
+              % (lightness_arclength,
+                 lightness_rmse,
+                 100 * lightness_rmse / np.mean(lightness_deltas)))
         #ax.set_ylim(0, ax.get_ylim()[1])
         ax.set_ylim(-delta_ymax(-lightness_deltas), delta_ymax(lightness_deltas))
         ax.get_xaxis().set_visible(False)
