@@ -451,6 +451,8 @@ class viscm_editor(object):
                  min_Jp=15, max_Jp=95, xp=None, yp=None):
         from .bezierbuilder import BezierModel, BezierBuilder
 
+        self._uniform_space = uniform_space
+
         axes = _viscm_editor_axes()
 
         ax_btn_wireframe = plt.axes([0.7, 0.15, 0.1, 0.025])
@@ -523,7 +525,8 @@ class viscm_editor(object):
         fig, ax = plt.subplots(subplot_kw=dict(projection='3d'))
         self.wireframe_view = WireframeView(ax,
                                             self.cmap_model,
-                                            self.highlight_point_model)
+                                            self.highlight_point_model,
+                                            self._uniform_space)
         plt.show()
 
     def save_colormap(self, event):
@@ -770,7 +773,7 @@ class HighlightPoint2DView(object):
 
 
 class WireframeView(object):
-    def __init__(self, ax, cmap_model, highlight_point_model):
+    def __init__(self, ax, cmap_model, highlight_point_model, uniform_space):
         self.ax = ax
         self.cmap_model = cmap_model
         self.highlight_point_model = highlight_point_model
@@ -782,7 +785,7 @@ class WireframeView(object):
         Jp, ap, bp = self.highlight_point_model.get_Jpapbp()
         self.marker = self.ax.plot([Jp], [ap], [bp], "y.", mew=3)[0]
 
-        gamut_patch = sRGB_gamut_patch()
+        gamut_patch = sRGB_gamut_patch(uniform_space)
         # That function returns a patch where each face is colored to match
         # the represented colors. For present purposes we want something
         # less... colorful.
