@@ -34,7 +34,7 @@ $ python bezier_builder.py
 """
 
 import numpy as np
-from scipy.special import binom
+from math import factorial
 
 import matplotlib
 import matplotlib.pyplot as plt
@@ -172,6 +172,11 @@ class BezierBuilder(object):
         x, y = self.bezier_model.get_bezier_points()
         self.bezier_curve.set_data(x, y)
         self.canvas.draw()
+
+# We used to use scipy.special.binom here, but reimplementing it ourself lets
+# us avoid pulling in a dependency scipy just for that one function.
+def binom(n, k):
+    return factorial(n) * 1.0 / (factorial(k) * factorial(n - k))
 
 def Bernstein(n, k):
     """Bernstein polynomial.
