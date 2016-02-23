@@ -20,7 +20,7 @@ Code and bug tracker:
   https://github.com/bids/viscm
 
 Contact:
-  Nathaniel J. Smith <njs@pobox.com> and Stefan van der Walt <stefanv@berkeley.edu>
+  Nathaniel J. Smith <njs@pobox.com> and Stéfan van der Walt <stefanv@berkeley.edu>
 
 Dependencies:
   * Python 2.6+, or 3.3+
