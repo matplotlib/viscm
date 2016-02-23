@@ -3,3 +3,5 @@
 # See file LICENSE.txt for license information.
 
 from .gui import viscm, viscm_editor
+
+__all__ = ["viscm", "viscm_editor"]

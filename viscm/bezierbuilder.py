@@ -36,8 +36,6 @@ $ python bezier_builder.py
 import numpy as np
 from math import factorial
 
-import matplotlib
-import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 
 from .minimvc import Trigger
@@ -132,7 +130,8 @@ class BezierBuilder(object):
 
     def on_button_press(self, event):
         # Ignore clicks outside axes
-        if event.inaxes != self.ax: return
+        if event.inaxes != self.ax:
+            return
         res, ind = self.control_polygon.contains(event)
         if res and event.key is None:
             # Grabbing a point to drag
@@ -156,12 +155,15 @@ class BezierBuilder(object):
             self.bezier_model.add_point(best + 1, event.xdata, event.ydata)
 
     def on_button_release(self, event):
-        if event.button != 1: return
+        if event.button != 1:
+            return
         self._index = None
 
     def on_motion_notify(self, event):
-        if event.inaxes != self.ax: return
-        if self._index is None: return
+        if event.inaxes != self.ax:
+            return
+        if self._index is None:
+            return
         x, y = event.xdata, event.ydata
 
         self.bezier_model.move_point(self._index, x, y)

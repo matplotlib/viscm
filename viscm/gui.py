@@ -19,7 +19,7 @@ import matplotlib.colors
 from matplotlib.colors import LinearSegmentedColormap
 
 from colorspacious import (cspace_converter, cspace_convert,
-                           CIECAM02Space, CIECAM02Surround, CAM02UCS)
+                           CIECAM02Space, CIECAM02Surround)
 from .minimvc import Trigger
 
 # The correct L_A value for the standard sRGB viewing conditions is:
@@ -147,7 +147,7 @@ def _vis_axes():
             'image1-cb': grid[3:7, 3],
             'image2': grid[7:, 2],
             'image2-cb': grid[7:, 3],
-    }
+            }
 
     axes = dict([(key, plt.subplot(value)) for (key, value) in axes.items()])
     axes['gamut'] = plt.subplot(grid[6:, :2], projection='3d')
@@ -189,6 +189,7 @@ class viscm(object):
                     horizontalalignment="right",
                     verticalalignment="bottom",
                     transform=ax.transAxes)
+
         def title(ax, s):
             ax.text(0.98, 0.98, s,
                     horizontalalignment="right",
@@ -201,8 +202,9 @@ class viscm(object):
             return max(np.max(values) * 1.1, 0)
 
         ax = axes['deltas']
-        local_deltas = N * np.sqrt(np.sum((Jpapbp[:-1, :] - Jpapbp[1:, :]) ** 2, axis=-1))
-        #print("perceptual delta peak-to-peak: %0.2f" % (np.ptp(local_deltas),))
+        local_deltas = N * np.sqrt(
+            np.sum((Jpapbp[:-1, :] - Jpapbp[1:, :]) ** 2, axis=-1))
+        # print("perceptual delta peak-to-peak: %0.2f" % (np.ptp(local_deltas),))
         ax.plot(x[1:], local_deltas)
         arclength = np.sum(local_deltas) / N
         rmse = np.std(local_deltas)
@@ -232,8 +234,9 @@ class viscm(object):
               % (lightness_arclength,
                  lightness_rmse,
                  100 * lightness_rmse / np.mean(lightness_deltas)))
-        #ax.set_ylim(0, ax.get_ylim()[1])
-        ax.set_ylim(-delta_ymax(-lightness_deltas), delta_ymax(lightness_deltas))
+        # ax.set_ylim(0, ax.get_ylim()[1])
+        ax.set_ylim(-delta_ymax(-lightness_deltas),
+                    delta_ymax(lightness_deltas))
         ax.get_xaxis().set_visible(False)
 
         # ax = axes['lightness']
@@ -312,7 +315,8 @@ class viscm(object):
                                  "st-helens_before-modified.txt.gz")).T)
         image_args.append({})
 
-        # Adapted from http://matplotlib.org/mpl_examples/images_contours_and_fields/pcolormesh_levels.py
+        # Adapted from
+        #   http://matplotlib.org/mpl_examples/images_contours_and_fields/pcolormesh_levels.py
         dx = dy = 0.05
         y, x = np.mgrid[-5 : 5 + dy : dy, -5 : 10 + dx : dx]
         z = np.sin(x) ** 10 + np.cos(10 + y * x) + np.cos(x) + 0.2 * y + 0.1 * x
@@ -476,8 +480,14 @@ class viscm_editor(object):
         ax_jp_max = plt.axes([0.1, 0.15, 0.5, 0.03], axisbg=axcolor)
         ax_jp_max.imshow(np.linspace(0, 100, 101).reshape(1, -1), cmap='gray')
 
-        self.jp_min_slider = Slider(ax_jp_min, r"$J'_\mathrm{min}$", 0, 100, valinit=min_Jp)
-        self.jp_max_slider = Slider(ax_jp_max, r"$J'_\mathrm{max}$", 0, 100, valinit=max_Jp)
+        self.jp_min_slider = Slider(ax_jp_min,
+                                    r"$J'_\mathrm{min}$",
+                                    0, 100,
+                                    valinit=min_Jp)
+        self.jp_max_slider = Slider(ax_jp_max,
+                                    r"$J'_\mathrm{max}$",
+                                    0, 100,
+                                    valinit=max_Jp)
 
         self.jp_min_slider.on_changed(self._jp_update)
         self.jp_max_slider.on_changed(self._jp_update)
@@ -507,7 +517,7 @@ class viscm_editor(object):
                                    self.highlight_point_model)
         self.bezier_highlight_point_view = tmp
 
-        #draw_pure_hue_angles(axes['bezier'])
+        # draw_pure_hue_angles(axes['bezier'])
         axes['bezier'].set_xlim(-100, 100)
         axes['bezier'].set_ylim(-100, 100)
 
@@ -780,7 +790,7 @@ class WireframeView(object):
 
         Jp, ap, bp = self.cmap_model.get_Jpapbp()
         self.line = self.ax.plot([0, 10], [0, 10])[0]
-        #self.line = self.ax.plot(Jp, ap, bp)[0]
+        # self.line = self.ax.plot(Jp, ap, bp)[0]
 
         Jp, ap, bp = self.highlight_point_model.get_Jpapbp()
         self.marker = self.ax.plot([Jp], [ap], [bp], "y.", mew=3)[0]
@@ -795,8 +805,8 @@ class WireframeView(object):
 
         _setup_Jpapbp_axis(self.ax)
 
-        #self.cmap_model.trigger.add_callback(self._refresh_line)
-        #self.highlight_point_model.trigger.add_callback(self._refresh_point)
+        # self.cmap_model.trigger.add_callback(self._refresh_line)
+        # self.highlight_point_model.trigger.add_callback(self._refresh_point)
         self._refresh_line()
         self._refresh_point()
 
@@ -853,9 +863,11 @@ def main(argv):
                         "curves.")
     parser.add_argument("--save", metavar="FILE",
                         default=None,
-                        help="Immediately save visualization to a file (view-mode only).")
+                        help="Immediately save visualization to a file "
+                             "(view-mode only).")
     parser.add_argument("--quit", default=False, action="store_true",
-                        help="Quit immediately after starting (useful with --save).")
+                        help="Quit immediately after starting "
+                             "(useful with --save).")
     args = parser.parse_args(argv)
 
     params = {}
@@ -864,7 +876,7 @@ def main(argv):
         if os.path.isfile(args.colormap):
             ns = {'__name__': '',
                   '__file__': os.path.basename(args.colormap),
-            }
+                  }
 
             with open(args.colormap) as f:
                 code = compile(f.read(),
