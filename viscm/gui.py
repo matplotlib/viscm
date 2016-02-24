@@ -142,6 +142,7 @@ def _vis_axes():
             # 'hue': grid[4:6, 3],
 
 
+
             'image0': grid[0:2, 2],
             'image0-cb': grid[0:2, 3],
             'image1': grid[2:5, 2],
@@ -326,7 +327,9 @@ class viscm(object):
         image_args.append({})
 
         # Peter Kovesi's colormap test image at http://peterkovesi.com/projects/colourmaps/colourmaptest.asc
+
         images.append(np.loadtxt(os.path.join(example_dir, "colourmaptest.txt")))
+
         image_args.append({})
 
         def _deuter_transform(RGBA):
