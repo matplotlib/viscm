@@ -141,14 +141,16 @@ def _vis_axes():
             # 'colourfulness': grid[4:6, 2],
             # 'hue': grid[4:6, 3],
 
-            'image0': grid[0:3, 2],
-            'image0-cb': grid[0:3, 3],
-            'image1': grid[3:7, 2],
-            'image1-cb': grid[3:7, 3],
-            'image2': grid[7:, 2],
-            'image2-cb': grid[7:, 3],
-            }
 
+            'image0': grid[0:2, 2],
+            'image0-cb': grid[0:2, 3],
+            'image1': grid[2:5, 2],
+            'image1-cb': grid[2:5, 3],
+            'image2': grid[5:8, 2],
+            'image2-cb': grid[5:8, 3],
+            'image3' : grid[8:, 2],
+            'image3-cb' : grid[8:, 3]
+    }
     axes = dict([(key, plt.subplot(value)) for (key, value) in axes.items()])
     axes['gamut'] = plt.subplot(grid[6:, :2], projection='3d')
     axes['gamut-toggle'] = plt.axes([0.01, 0.01, 0.08, 0.025])
@@ -321,6 +323,10 @@ class viscm(object):
         y, x = np.mgrid[-5 : 5 + dy : dy, -5 : 10 + dx : dx]
         z = np.sin(x) ** 10 + np.cos(10 + y * x) + np.cos(x) + 0.2 * y + 0.1 * x
         images.append(z)
+        image_args.append({})
+
+        # Peter Kovesi's colormap test image at http://peterkovesi.com/projects/colourmaps/colourmaptest.asc
+        images.append(np.loadtxt(os.path.join(example_dir, "colourmaptest.txt")))
         image_args.append({})
 
         def _deuter_transform(RGBA):
