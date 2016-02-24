@@ -143,12 +143,11 @@ def _vis_axes():
 
             'image0': grid[0:3, 2],
             'image0-cb': grid[0:3, 3],
-            'image1': grid[3:7, 2],
-            'image1-cb': grid[3:7, 3],
-            'image2': grid[7:, 2],
-            'image2-cb': grid[7:, 3],
+            'image1': grid[3:6, 2],
+            'image1-cb': grid[3:6, 3],
+            'image2': grid[6:8, 2:],
+            'image2-cb': grid[8:, 2:]
             }
-
     axes = dict([(key, plt.subplot(value)) for (key, value) in axes.items()])
     axes['gamut'] = plt.subplot(grid[6:, :2], projection='3d')
     axes['gamut-toggle'] = plt.axes([0.01, 0.01, 0.08, 0.025])
@@ -305,12 +304,6 @@ class viscm(object):
         image_args = []
         example_dir = os.path.join(os.path.dirname(__file__), "examples")
 
-        images.append(np.loadtxt(os.path.join(example_dir, "hist2d.txt")))
-        image_args.append({"aspect": "equal",
-                           "origin": "lower",
-                           "interpolation": "nearest",
-                           "vmin": 0})
-
         images.append(np.loadtxt(os.path.join(example_dir,
                                  "st-helens_before-modified.txt.gz")).T)
         image_args.append({})
@@ -321,6 +314,13 @@ class viscm(object):
         y, x = np.mgrid[-5 : 5 + dy : dy, -5 : 10 + dx : dx]
         z = np.sin(x) ** 10 + np.cos(10 + y * x) + np.cos(x) + 0.2 * y + 0.1 * x
         images.append(z)
+        image_args.append({})
+
+        # Peter Kovesi's colormap test image at
+        #   http://peterkovesi.com/projects/colourmaps/colourmaptest.tif
+
+        images.append(np.load(os.path.join(example_dir, "colourmaptest.npy")))
+
         image_args.append({})
 
         def _deuter_transform(RGBA):
