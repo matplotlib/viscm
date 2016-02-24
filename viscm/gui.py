@@ -327,10 +327,9 @@ class viscm(object):
         image_args.append({})
 
         # Peter Kovesi's colormap test image at
-        # http://peterkovesi.com/projects/colourmaps/colourmaptest.asc
+        #   http://peterkovesi.com/projects/colourmaps/colourmaptest.tif
 
-        images.append(np.loadtxt(os.path.join(example_dir,
-                                              "colourmaptest.txt")))
+        images.append(np.load(os.path.join(example_dir, "colourmaptest.npy")))
 
         image_args.append({})
 
