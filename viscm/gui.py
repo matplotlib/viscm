@@ -119,7 +119,7 @@ class TransformedCMap(matplotlib.colors.Colormap):
     def is_gray(self):
         return False
 
-def _vis_axes():
+def _vis_axes(fig):
     grid = GridSpec(10, 4,
                     left=0.02,
                     right=0.98,
@@ -148,9 +148,11 @@ def _vis_axes():
             'image2': grid[6:8, 2:],
             'image2-cb': grid[8:, 2:]
             }
-    axes = dict([(key, plt.subplot(value)) for (key, value) in axes.items()])
-    axes['gamut'] = plt.subplot(grid[6:, :2], projection='3d')
-    axes['gamut-toggle'] = plt.axes([0.01, 0.01, 0.08, 0.025])
+
+    axes = dict([(key, fig.add_subplot(value))
+                 for (key, value) in axes.items()])
+    axes['gamut'] = fig.add_subplot(grid[6:, :2], projection='3d')
+    axes['gamut-toggle'] = fig.add_axes([0.01, 0.01, 0.08, 0.025])
 
     return axes
 
@@ -170,7 +172,7 @@ class viscm(object):
 
         self.fig = plt.figure()
         self.fig.suptitle("Colormap evaluation: %s" % (name,), fontsize=24)
-        axes = _vis_axes()
+        axes = _vis_axes(self.fig)
 
         x = np.linspace(0, 1, N)
         x_dots = np.linspace(0, 1, N_dots)
@@ -439,14 +441,15 @@ def draw_sRGB_gamut_Jp_slice(ax, Jp, uniform_space,
 #     return sRGB
 
 
-def _viscm_editor_axes():
+def _viscm_editor_axes(fig):
     grid = GridSpec(1, 2,
                     width_ratios=[5, 1],
                     height_ratios=[6, 1])
     axes = {'bezier': grid[0, 0],
             'cm': grid[0, 1]}
 
-    axes = dict([(key, plt.subplot(value)) for (key, value) in axes.items()])
+    axes = dict([(key, fig.add_subplot(value))
+                 for (key, value) in axes.items()])
     return axes
 
 
@@ -457,7 +460,8 @@ class viscm_editor(object):
 
         self._uniform_space = uniform_space
 
-        axes = _viscm_editor_axes()
+        self.figure = plt.figure()
+        axes = _viscm_editor_axes(self.figure)
 
         ax_btn_wireframe = plt.axes([0.7, 0.15, 0.1, 0.025])
         self.btn_wireframe = Button(ax_btn_wireframe, 'Show 3D gamut')
