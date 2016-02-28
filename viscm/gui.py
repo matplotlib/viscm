@@ -10,6 +10,9 @@ import sys
 import os.path
 
 import numpy as np
+import matplotlib
+
+matplotlib.rcParams['backend'] = "QT4AGG"
 
 import matplotlib.pyplot as plt
 import mpl_toolkits.mplot3d
@@ -21,6 +24,10 @@ from matplotlib.colors import LinearSegmentedColormap
 from colorspacious import (cspace_converter, cspace_convert,
                            CIECAM02Space, CIECAM02Surround)
 from .minimvc import Trigger
+
+from PyQt4 import QtGui, QtCore
+from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
+
 
 # The correct L_A value for the standard sRGB viewing conditions is:
 #   (64 / np.pi) / 5
@@ -170,9 +177,9 @@ class viscm(object):
 
         self._sRGB1_to_uniform = cspace_converter("sRGB1", uniform_space)
 
-        self.fig = plt.figure()
-        self.fig.suptitle("Colormap evaluation: %s" % (name,), fontsize=24)
-        axes = _vis_axes(self.fig)
+        self.figure = plt.figure()
+        self.figure.suptitle("Colormap evaluation: %s" % (name,), fontsize=24)
+        axes = _vis_axes(self.figure)
 
         x = np.linspace(0, 1, N)
         x_dots = np.linspace(0, 1, N_dots)
@@ -345,6 +352,9 @@ class viscm(object):
 
         axes['image0'].set_title("Sample images")
         axes['image0-cb'].set_title("Moderate deuter.")
+
+
+
 
 def sRGB_gamut_patch(uniform_space, resolution=20):
     step = 1.0 / resolution
@@ -876,6 +886,10 @@ def main(argv):
 
     params = {}
     cmap = None
+
+    window = QtGui.QApplication([])
+
+
     if args.colormap:
         if os.path.isfile(args.colormap):
             ns = {'__name__': '',
@@ -904,6 +918,12 @@ def main(argv):
         if cmap is None:
             sys.exit("Please specify a colormap")
         v = viscm(cmap, uniform_space=uniform_space)
+
+        action = "Viewing"
+        figureCanvas = FigureCanvas(v.figure)
+        mainwindow = ViewerWindow(figureCanvas)
+
+
         if args.save is not None:
             v.fig.set_size_inches(20, 12)
             v.fig.savefig(args.save)
@@ -912,13 +932,64 @@ def main(argv):
             sys.exit("Sorry, I don't know how to edit the specified colormap")
         # Hold a reference so it doesn't get GC'ed
         v = viscm_editor(uniform_space=uniform_space, **params)
+        action = "Editing"
+        figureCanvas = FigureCanvas(v.figure)
+        mainwindow = EditorWindow(figureCanvas)
     else:
         raise RuntimeError("can't happen")
 
     if args.quit:
         sys.exit()
 
-    plt.show()
+
+    
+    FigureCanvas.setSizePolicy(figureCanvas,
+                               QtGui.QSizePolicy.Expanding,
+                               QtGui.QSizePolicy.Expanding)
+    FigureCanvas.updateGeometry(figureCanvas)
+
+    mainwindow.resize(800, 600)
+    mainwindow.setWindowTitle(" ".join(["VISCM", action, ":", args.colormap]))
+    mainwindow.show()
+    
+    window.exec_()
+
+
+    # plt.show()
+
+class ViewerWindow(QtGui.QMainWindow):
+    def __init__(self, figure):
+        #self.viscm_object = viscm_object
+        QtGui.QMainWindow.__init__(self)
+        self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
+        self.setWindowTitle("application main window")
+
+        self.main_widget = QtGui.QWidget(self)
+
+        l = QtGui.QVBoxLayout(self.main_widget)
+        l.addWidget(figure)
+        self.main_widget.setFocus()
+        self.setCentralWidget(self.main_widget)
+class EditorWindow(QtGui.QMainWindow):
+    def __init__(self, figure):
+        #self.viscm_object = viscm_object
+        QtGui.QMainWindow.__init__(self)
+        self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
+        self.setWindowTitle("application main window")
+
+        self.main_widget = QtGui.QWidget(self)
+
+        l = QtGui.QVBoxLayout(self.main_widget)
+        l.addWidget(figure)
+        self.main_widget.setFocus()
+        self.setCentralWidget(self.main_widget)
+
+
+
+
+
+
+
 
 if __name__ == "__main__":
     main(sys.argv[1:])
