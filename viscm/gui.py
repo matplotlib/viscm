@@ -544,6 +544,8 @@ class viscm_editor(object):
             axes['cm'],
             self.highlight_point_model)
 
+        self.axes = axes
+
         print("Click sliders at bottom to change min/max lightness")
         print("Click on colorbar to adjust gamut view")
         print("Click-drag to move control points, ")
@@ -626,6 +628,13 @@ class viscm_editor(object):
             self.jp_max_slider.set_val(largest)
 
         self.cmap_model.set_Jp_minmax(smallest, largest)
+
+    # restores mouse input after being embedded within a FigureCanvas
+    # This isn't working, axes['bezier'] is of type AxesSubplot and has no attribute mouse_init
+    def restoremouse(self):
+        # self.axes['bezier'].mouse_init()
+        return 
+
 
 
 class BezierCMapModel(object):
@@ -936,7 +945,7 @@ def main(argv):
         v = viscm_editor(uniform_space=uniform_space, **params)
 
         figureCanvas = FigureCanvas(v.figure)
-        mainwindow = EditorWindow(figureCanvas)
+        mainwindow = EditorWindow(figureCanvas, v, args.colormap)
     else:
         raise RuntimeError("can't happen")
 
@@ -1015,17 +1024,23 @@ class ViewerWindow(QtGui.QMainWindow):
 
 
 class EditorWindow(QtGui.QMainWindow):
-    def __init__(self, figure):
+    def __init__(self, figurecanvas, viscm_editor, cmapname):
         QtGui.QMainWindow.__init__(self)
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
         self.setWindowTitle("application main window")
 
+        self.viscm_editor = viscm_editor
+
         self.main_widget = QtGui.QWidget(self)
 
         l = QtGui.QVBoxLayout(self.main_widget)
-        l.addWidget(figure)
+        l.addWidget(figurecanvas)
         self.main_widget.setFocus()
         self.setCentralWidget(self.main_widget)
+        self.viscm_editor.restoremouse()
+
+
+
 
 if __name__ == "__main__":
     main(sys.argv[1:])
