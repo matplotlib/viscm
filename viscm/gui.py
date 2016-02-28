@@ -126,6 +126,7 @@ class TransformedCMap(matplotlib.colors.Colormap):
     def is_gray(self):
         return False
 
+
 def _vis_axes(fig):
     grid = GridSpec(10, 4,
                     left=0.02,
@@ -159,8 +160,6 @@ def _vis_axes(fig):
     axes = dict([(key, fig.add_subplot(value))
                  for (key, value) in axes.items()])
     axes['gamut'] = fig.add_subplot(grid[6:, :2], projection='3d')
-    # axes['gamut-toggle'] = fig.add_axes([0.01, 0.01, 0.08, 0.025])
-
     return axes
 
 
@@ -179,6 +178,7 @@ class viscm(object):
 
         self.figure = plt.figure()
         self.figure.suptitle("Colormap evaluation: %s" % (name,), fontsize=24)
+
         axes = _vis_axes(self.figure)
 
         x = np.linspace(0, 1, N)
@@ -299,13 +299,8 @@ class viscm(object):
         self.gamut_patch.set_edgecolor([0.2, 0.2, 0.2, 0.1])
         ax.add_collection3d(self.gamut_patch)
         self.gamut_patch.set_visible(show_gamut)
-        ax.view_init(elev=75, azim=-75)
 
-        # self.gamut_patch_toggle = Button(axes['gamut-toggle'], "Toggle gamut")
-        # def toggle(*args):
-        #     self.gamut_patch.set_visible(not self.gamut_patch.get_visible())
-        #     plt.draw()
-        # self.gamut_patch_toggle.on_clicked(toggle)
+        ax.view_init(elev=75, azim=-75)
 
         _setup_Jpapbp_axis(ax)
 
@@ -352,11 +347,17 @@ class viscm(object):
 
         axes['image0'].set_title("Sample images")
         axes['image0-cb'].set_title("Moderate deuter.")
-
+        self.axes = axes
 
     def togglegamut(self):
         self.gamut_patch.set_visible(not self.gamut_patch.get_visible())
-        plt.draw()
+
+    # restores mouse rotation when figure is embedded within PyQT
+    def restoremouse(self):
+        self.axes["gamut"].mouse_init()
+
+    def savefigure(self, path):
+        self.figure.savefig(path)
 
 
 def sRGB_gamut_patch(uniform_space, resolution=20):
@@ -626,6 +627,7 @@ class viscm_editor(object):
 
         self.cmap_model.set_Jp_minmax(smallest, largest)
 
+
 class BezierCMapModel(object):
     def __init__(self, bezier_model, min_Jp, max_Jp, uniform_space):
         self.bezier_model = bezier_model
@@ -890,8 +892,7 @@ def main(argv):
     params = {}
     cmap = None
 
-    window = QtGui.QApplication([])
-
+    app = QtGui.QApplication([])
 
     if args.colormap:
         if os.path.isfile(args.colormap):
@@ -922,10 +923,8 @@ def main(argv):
             sys.exit("Please specify a colormap")
         v = viscm(cmap, uniform_space=uniform_space)
 
-        action = "Viewing"
         figureCanvas = FigureCanvas(v.figure)
-        mainwindow = ViewerWindow(figureCanvas,v)
-
+        mainwindow = ViewerWindow(figureCanvas, v, args.colormap)
 
         if args.save is not None:
             v.fig.set_size_inches(20, 12)
@@ -935,7 +934,7 @@ def main(argv):
             sys.exit("Sorry, I don't know how to edit the specified colormap")
         # Hold a reference so it doesn't get GC'ed
         v = viscm_editor(uniform_space=uniform_space, **params)
-        action = "Editing"
+
         figureCanvas = FigureCanvas(v.figure)
         mainwindow = EditorWindow(figureCanvas)
     else:
@@ -944,48 +943,79 @@ def main(argv):
     if args.quit:
         sys.exit()
 
-
-    
     FigureCanvas.setSizePolicy(figureCanvas,
                                QtGui.QSizePolicy.Expanding,
                                QtGui.QSizePolicy.Expanding)
     FigureCanvas.updateGeometry(figureCanvas)
 
     mainwindow.resize(800, 600)
-    mainwindow.setWindowTitle(" ".join(["VISCM", action, ":", args.colormap]))
-    mainwindow.show()
-    
-    window.exec_()
 
+    mainwindow.show()
+    app.exec_()
 
     # plt.show()
 
+
 class ViewerWindow(QtGui.QMainWindow):
-    def __init__(self, figurecanvas, viscm):
+    def __init__(self, figurecanvas, viscm, cmapname):
 
         QtGui.QMainWindow.__init__(self)
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
         self.setWindowTitle("application main window")
         self.main_widget = QtGui.QWidget(self)
+        self.cmapname = cmapname
+
+        file_menu = QtGui.QMenu('&File', self)
+        file_menu.addAction('&Save', self.save,
+                                QtCore.Qt.CTRL + QtCore.Qt.Key_S)
+        file_menu.addAction('&Quit', self.fileQuit,
+                                QtCore.Qt.CTRL + QtCore.Qt.Key_Q)
+
+        options_menu = QtGui.QMenu('&Options', self)
+        options_menu.addAction('&Toggle Gamut', self.togglegamut,
+                                QtCore.Qt.CTRL + QtCore.Qt.Key_G)
+
+        help_menu = QtGui.QMenu('&Help', self)
+        help_menu.addAction('&About', self.about)
+
+        self.menuBar().addMenu(file_menu)
+        self.menuBar().addMenu(options_menu)
+        self.menuBar().addMenu(help_menu)
+        self.setWindowTitle("VISCM Viewing : " + cmapname)
+
         self.viscm = viscm
         self.figurecanvas = figurecanvas
-        self.figurecanvas.setUpdatesEnabled(True)
-        l = QtGui.QVBoxLayout(self.main_widget)
-        l.addWidget(figurecanvas)
-        gamut_toggle = QtGui.QPushButton("Toggle Gamut", self)
-        gamut_toggle.clicked.connect(self.togglegamut)
-        l.addWidget(gamut_toggle)
+
+        v = QtGui.QVBoxLayout(self.main_widget)
+        v.addWidget(figurecanvas)
 
         self.main_widget.setFocus()
         self.setCentralWidget(self.main_widget)
+        self.viscm.restoremouse()
+
     def togglegamut(self):
         self.viscm.togglegamut()
         self.figurecanvas.draw()
 
+    def fileQuit(self):
+        self.close()
+
+    def closeEvent(self, ce):
+        self.fileQuit()
+
+    def save(self):
+        fileName = QtGui.QFileDialog.getSaveFileName(caption="Save file",
+                                    directory=self.cmapname + ".png",
+                                    filter="Image Files (*.png *.jpg *.bmp)")
+        self.viscm.savefigure(fileName)
+
+    def about(self):
+        QtGui.QMessageBox.about(self, "VISCM",
+            "Copyright (C) 2015 Nathaniel Smith\nCopyright (C) 2015 Stefan van der Walt")
+
 
 class EditorWindow(QtGui.QMainWindow):
     def __init__(self, figure):
-        #self.viscm_object = viscm_object
         QtGui.QMainWindow.__init__(self)
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
         self.setWindowTitle("application main window")
@@ -996,13 +1026,6 @@ class EditorWindow(QtGui.QMainWindow):
         l.addWidget(figure)
         self.main_widget.setFocus()
         self.setCentralWidget(self.main_widget)
-
-
-
-
-
-
-
 
 if __name__ == "__main__":
     main(sys.argv[1:])
