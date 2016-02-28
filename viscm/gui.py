@@ -159,7 +159,7 @@ def _vis_axes(fig):
     axes = dict([(key, fig.add_subplot(value))
                  for (key, value) in axes.items()])
     axes['gamut'] = fig.add_subplot(grid[6:, :2], projection='3d')
-    axes['gamut-toggle'] = fig.add_axes([0.01, 0.01, 0.08, 0.025])
+    # axes['gamut-toggle'] = fig.add_axes([0.01, 0.01, 0.08, 0.025])
 
     return axes
 
@@ -301,11 +301,11 @@ class viscm(object):
         self.gamut_patch.set_visible(show_gamut)
         ax.view_init(elev=75, azim=-75)
 
-        self.gamut_patch_toggle = Button(axes['gamut-toggle'], "Toggle gamut")
-        def toggle(*args):
-            self.gamut_patch.set_visible(not self.gamut_patch.get_visible())
-            plt.draw()
-        self.gamut_patch_toggle.on_clicked(toggle)
+        # self.gamut_patch_toggle = Button(axes['gamut-toggle'], "Toggle gamut")
+        # def toggle(*args):
+        #     self.gamut_patch.set_visible(not self.gamut_patch.get_visible())
+        #     plt.draw()
+        # self.gamut_patch_toggle.on_clicked(toggle)
 
         _setup_Jpapbp_axis(ax)
 
@@ -354,6 +354,9 @@ class viscm(object):
         axes['image0-cb'].set_title("Moderate deuter.")
 
 
+    def togglegamut(self):
+        self.gamut_patch.set_visible(not self.gamut_patch.get_visible())
+        plt.draw()
 
 
 def sRGB_gamut_patch(uniform_space, resolution=20):
@@ -921,7 +924,7 @@ def main(argv):
 
         action = "Viewing"
         figureCanvas = FigureCanvas(v.figure)
-        mainwindow = ViewerWindow(figureCanvas)
+        mainwindow = ViewerWindow(figureCanvas,v)
 
 
         if args.save is not None:
@@ -958,18 +961,28 @@ def main(argv):
     # plt.show()
 
 class ViewerWindow(QtGui.QMainWindow):
-    def __init__(self, figure):
-        #self.viscm_object = viscm_object
+    def __init__(self, figurecanvas, viscm):
+
         QtGui.QMainWindow.__init__(self)
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
         self.setWindowTitle("application main window")
-
         self.main_widget = QtGui.QWidget(self)
-
+        self.viscm = viscm
+        self.figurecanvas = figurecanvas
+        self.figurecanvas.setUpdatesEnabled(True)
         l = QtGui.QVBoxLayout(self.main_widget)
-        l.addWidget(figure)
+        l.addWidget(figurecanvas)
+        gamut_toggle = QtGui.QPushButton("Toggle Gamut", self)
+        gamut_toggle.clicked.connect(self.togglegamut)
+        l.addWidget(gamut_toggle)
+
         self.main_widget.setFocus()
         self.setCentralWidget(self.main_widget)
+    def togglegamut(self):
+        self.viscm.togglegamut()
+        self.figurecanvas.draw()
+
+
 class EditorWindow(QtGui.QMainWindow):
     def __init__(self, figure):
         #self.viscm_object = viscm_object
