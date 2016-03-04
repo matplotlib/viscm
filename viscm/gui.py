@@ -21,6 +21,7 @@ from matplotlib.widgets import Button, Slider
 import matplotlib.colors
 from matplotlib.colors import LinearSegmentedColormap
 
+
 from colorspacious import (cspace_converter, cspace_convert,
                            CIECAM02Space, CIECAM02Surround)
 from .minimvc import Trigger
@@ -474,19 +475,20 @@ class viscm_editor(object):
         self.figure = figure
         axes = _viscm_editor_axes(self.figure)
 
-        ax_btn_props = plt.axes([0.81, 0.1, 0.1, 0.025])
-        self.btn_props = Button(ax_btn_props, 'Properties')
-        self.btn_props.on_clicked(self.show_viscm)
-        self.prop_windows = []
 
         axcolor = 'None'
+        '''
         ax_jp_min = plt.axes([0.1, 0.1, 0.5, 0.03], axisbg=axcolor)
         ax_jp_min.imshow(np.linspace(0, 100, 101).reshape(1, -1), cmap='gray')
         ax_jp_min.set_xlim(0, 100)
 
         ax_jp_max = plt.axes([0.1, 0.15, 0.5, 0.03], axisbg=axcolor)
         ax_jp_max.imshow(np.linspace(0, 100, 101).reshape(1, -1), cmap='gray')
+        '''
 
+        self.min_Jp = min_Jp
+        self.max_Jp = max_Jp
+        '''
         self.jp_min_slider = Slider(ax_jp_min,
                                     r"$J'_\mathrm{min}$",
                                     0, 100,
@@ -498,6 +500,8 @@ class viscm_editor(object):
 
         self.jp_min_slider.on_changed(self._jp_update)
         self.jp_max_slider.on_changed(self._jp_update)
+        '''
+        
 
         if xp is None:
             xp = [-2.0591553836234482, 59.377014829142524,
@@ -511,8 +515,8 @@ class viscm_editor(object):
 
         self.bezier_model = BezierModel(xp, yp)
         self.cmap_model = BezierCMapModel(self.bezier_model,
-                                          self.jp_min_slider.val,
-                                          self.jp_max_slider.val,
+                                          self.min_Jp,
+                                          self.max_Jp,
                                           uniform_space)
         self.highlight_point_model = HighlightPointModel(self.cmap_model, 0.5)
 
@@ -608,22 +612,21 @@ class viscm_editor(object):
             print("Saved colormap to "+filepath)
             print("*" * 50)
 
-    def show_viscm(self, event):
+    def show_viscm(self):
         cm = LinearSegmentedColormap.from_list(
             'test_cm',
             self.cmap_model.get_sRGB(num=256)[0])
-        self.prop_windows.append(viscm(cm, name='test_cm'))
-        plt.show()
+        return cm
+        #plt.show()
 
-    def _jp_update(self, val):
-        jp_min = self.jp_min_slider.val
-        jp_max = self.jp_max_slider.val
+    def _jp_update(self, minval, maxval):
+        jp_min = minval
+        jp_max = maxval
 
         smallest, largest = min(jp_min, jp_max), max(jp_min, jp_max)
-        if (jp_min > smallest) or (jp_max < largest):
-            self.jp_min_slider.set_val(smallest)
-            self.jp_max_slider.set_val(largest)
 
+        self.min_Jp = smallest
+        self.max_Jp = largest
         self.cmap_model.set_Jp_minmax(smallest, largest)
 
 
@@ -964,11 +967,11 @@ def main(argv):
 class ViewerWindow(QtGui.QMainWindow):
     def __init__(self, figurecanvas, viscm, cmapname, parent=None):
 
-        QtGui.QMainWindow.__init__(self)
+        QtGui.QMainWindow.__init__(self,parent)
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
         self.main_widget = QtGui.QWidget(self)
         self.cmapname = cmapname
-        self.setParent(parent)
+        #self.setParent(parent)
 
         file_menu = QtGui.QMenu('&File', self)
         file_menu.addAction('&Save', self.save,
@@ -1020,11 +1023,11 @@ class ViewerWindow(QtGui.QMainWindow):
 
 class EditorWindow(QtGui.QMainWindow):
     def __init__(self, figurecanvas, viscm_editor, cmapname, parent=None):
-        QtGui.QMainWindow.__init__(self)
+        QtGui.QMainWindow.__init__(self,parent)
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
         self.viscm_editor = viscm_editor
         self.cmapname = cmapname
-        self.setParent(parent)
+
 
 
         file_menu = QtGui.QMenu('&File', self)
@@ -1049,10 +1052,74 @@ class EditorWindow(QtGui.QMainWindow):
 
         self.main_widget = QtGui.QWidget(self)
 
-        l = QtGui.QVBoxLayout(self.main_widget)
-        l.addWidget(figurecanvas)
+        
+
+
+
+        plot_layout = QtGui.QHBoxLayout()
+        self.range_slider = QtGui.QSlider(QtCore.Qt.Vertical)
+        self.range_slider.setMinimum(0)
+        self.range_slider.setMaximum(100)
+        self.range_slider.setValue(50)
+        self.range_slider.setTickPosition(QtGui.QSlider.TicksRight)
+        self.range_slider.setTickInterval(10)
+
+        plot_layout.addWidget(figurecanvas)
+        plot_layout.addWidget(self.range_slider)
+
+        
+        max_slider_layout = QtGui.QHBoxLayout()
+        self.max_slider = QtGui.QSlider(QtCore.Qt.Horizontal)
+        
+        
+        self.max_slider.setMinimum(0)
+        self.max_slider.setMaximum(100)
+        self.max_slider.setValue(viscm_editor.max_Jp)
+        self.max_slider.setTickPosition(QtGui.QSlider.TicksBelow)
+        self.max_slider.setTickInterval(10)
+        self.max_slider.valueChanged.connect(self.updatejp)
+        self.max_slider_num = QtGui.QLabel(str(viscm_editor.max_Jp))
+        self.max_slider_num.setFixedWidth(30)
+
+
+        max_slider_layout.addWidget(QtGui.QLabel("J Max"))
+        max_slider_layout.addWidget(self.max_slider)
+        max_slider_layout.addWidget(self.max_slider_num)
+
+        min_slider_layout = QtGui.QHBoxLayout()
+        self.min_slider = QtGui.QSlider(QtCore.Qt.Horizontal)
+        
+        
+        self.min_slider.setMinimum(0)
+        self.min_slider.setMaximum(100)
+        self.min_slider.setValue(viscm_editor.min_Jp)
+        self.min_slider.setTickPosition(QtGui.QSlider.TicksBelow)
+        self.min_slider.setTickInterval(10)
+        self.min_slider.valueChanged.connect(self.updatejp)
+        self.min_slider_num = QtGui.QLabel(str(viscm_editor.min_Jp))
+        self.min_slider_num.setFixedWidth(30)
+
+        min_slider_layout.addWidget(QtGui.QLabel("J Min"))
+        min_slider_layout.addWidget(self.min_slider)
+        min_slider_layout.addWidget(self.min_slider_num)
+        
+        mainlayout = QtGui.QVBoxLayout(self.main_widget)
+
+
+        mainlayout.addLayout(plot_layout)
+        mainlayout.addLayout(max_slider_layout)
+        mainlayout.addLayout(min_slider_layout)
+
+
         self.main_widget.setFocus()
         self.setCentralWidget(self.main_widget)
+    def updatejp(self):
+        minval = self.min_slider.value()
+        maxval = self.max_slider.value()
+        self.viscm_editor._jp_update(minval, maxval)
+        self.min_slider_num.setText(str(minval))
+        self.max_slider_num.setText(str(maxval))
+
 
     def view_gamut(self):
         gamut_figure = self.viscm_editor.plot_3d_gamut()
@@ -1082,8 +1149,21 @@ class EditorWindow(QtGui.QMainWindow):
                                     filter="Python Files (*.py)")
         self.viscm_editor.save_colormap(fileName)
     def loadviewer(self):
-        return
+        
+        newfig = plt.figure()
+        newcanvas = FigureCanvas(newfig)
+        cm = self.viscm_editor.show_viscm()
+        v = viscm(cm, name="test_cm", figure=newfig)
+        
+        FigureCanvas.setSizePolicy(newcanvas,
+                               QtGui.QSizePolicy.Expanding,
+                               QtGui.QSizePolicy.Expanding)
+        FigureCanvas.updateGeometry(newcanvas)
 
+        newwindow = ViewerWindow(newcanvas, v, "test_cm", parent=self)
+        newwindow.resize(800, 600)
+
+        newwindow.show()
 
     def about(self):
         QtGui.QMessageBox.about(self, "VISCM",
