@@ -845,7 +845,7 @@ def main(argv):
         description="A colormap tool.",
     )
     parser.add_argument("action", metavar="ACTION",
-                        help="'edit' or 'view'",
+                        help="'edit' or 'view' (or 'show', same as 'view')",
                         choices=["edit", "view", "show"],
                         default="edit",
                         nargs="?")
