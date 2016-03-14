@@ -17,7 +17,7 @@ matplotlib.rcParams['backend'] = "QT4AGG"
 import matplotlib.pyplot as plt
 import mpl_toolkits.mplot3d
 from matplotlib.gridspec import GridSpec
-from matplotlib.widgets import Button, Slider
+# from matplotlib.widgets import Button, Slider
 import matplotlib.colors
 from matplotlib.colors import LinearSegmentedColormap
 
@@ -353,7 +353,6 @@ class viscm(object):
     def toggle_gamut(self):
         self.gamut_patch.set_visible(not self.gamut_patch.get_visible())
 
-
     def save_figure(self, path):
         self.figure.savefig(path)
 
@@ -455,8 +454,8 @@ def draw_sRGB_gamut_Jp_slice(ax, Jp, uniform_space,
 
 def _viscm_editor_axes(fig):
     grid = GridSpec(1, 2,
-                    width_ratios=[5, 1],
-                    height_ratios=[6, 1])
+                    width_ratios=[9, 1],
+                    height_ratios=[50])
     axes = {'bezier': grid[0, 0],
             'cm': grid[0, 1]}
 
@@ -475,8 +474,6 @@ class viscm_editor(object):
         self.figure = figure
         axes = _viscm_editor_axes(self.figure)
 
-
-        axcolor = 'None'
         '''
         ax_jp_min = plt.axes([0.1, 0.1, 0.5, 0.03], axisbg=axcolor)
         ax_jp_min.imshow(np.linspace(0, 100, 101).reshape(1, -1), cmap='gray')
@@ -501,7 +498,6 @@ class viscm_editor(object):
         self.jp_min_slider.on_changed(self._jp_update)
         self.jp_max_slider.on_changed(self._jp_update)
         '''
-        
 
         if xp is None:
             xp = [-2.0591553836234482, 59.377014829142524,
@@ -539,12 +535,10 @@ class viscm_editor(object):
 
         self.axes = axes
 
-        print("Click sliders at bottom to change min/max lightness")
-        print("Click on colorbar to adjust gamut view")
-        print("Click-drag to move control points, ")
-        print("  shift-click to add, control-click to delete")
-
-
+        # print("Click sliders at bottom to change min/max lightness")
+        # print("Click on colorbar to adjust gamut view")
+        # print("Click-drag to move control points, ")
+        # print("  shift-click to add, control-click to delete")
 
     def plot_3d_gamut(self):
         fig, ax = plt.subplots(subplot_kw=dict(projection='3d'))
@@ -554,11 +548,6 @@ class viscm_editor(object):
                                             self._uniform_space)
         self.gamutfigure = fig
         return fig
-
-    def save_3d_gamut(self):
-        self.gamutfigure.savefig(path)
-
-
 
     def save_colormap(self, filepath):
         import textwrap
@@ -617,20 +606,16 @@ class viscm_editor(object):
             'test_cm',
             self.cmap_model.get_sRGB(num=256)[0])
         return cm
-        #plt.show()
 
     def _jp_update(self, minval, maxval):
         jp_min = minval
         jp_max = maxval
 
-        smallest, largest = min(jp_min, jp_max), max(jp_min, jp_max)
+        # smallest, largest = min(jp_min, jp_max), max(jp_min, jp_max)
 
-        self.min_Jp = smallest
-        self.max_Jp = largest
-        self.cmap_model.set_Jp_minmax(smallest, largest)
-
-
-
+        self.min_Jp = jp_min
+        self.max_Jp = jp_max
+        self.cmap_model.set_Jp_minmax(self.min_Jp, self.max_Jp)
 
 
 class BezierCMapModel(object):
@@ -926,7 +911,7 @@ def main(argv):
     if args.action in ("view", "show"):
         if cmap is None:
             sys.exit("Please specify a colormap")
-        
+
         fig = plt.figure()
         figureCanvas = FigureCanvas(fig)
         v = viscm(cmap, figure=fig, uniform_space=uniform_space)
@@ -943,7 +928,7 @@ def main(argv):
         figureCanvas = FigureCanvas(fig)
         v = viscm_editor(figure=fig, uniform_space=uniform_space, **params)
 
-        #figureCanvas = FigureCanvas(v.figure)
+        # figureCanvas = FigureCanvas(v.figure)
         mainwindow = EditorWindow(figureCanvas, v, args.colormap)
     else:
         raise RuntimeError("can't happen")
@@ -966,12 +951,10 @@ def main(argv):
 
 class ViewerWindow(QtGui.QMainWindow):
     def __init__(self, figurecanvas, viscm, cmapname, parent=None):
-
-        QtGui.QMainWindow.__init__(self,parent)
+        QtGui.QMainWindow.__init__(self, parent)
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
         self.main_widget = QtGui.QWidget(self)
         self.cmapname = cmapname
-        #self.setParent(parent)
 
         file_menu = QtGui.QMenu('&File', self)
         file_menu.addAction('&Save', self.save,
@@ -1023,12 +1006,10 @@ class ViewerWindow(QtGui.QMainWindow):
 
 class EditorWindow(QtGui.QMainWindow):
     def __init__(self, figurecanvas, viscm_editor, cmapname, parent=None):
-        QtGui.QMainWindow.__init__(self,parent)
+        QtGui.QMainWindow.__init__(self, parent)
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
         self.viscm_editor = viscm_editor
         self.cmapname = cmapname
-
-
 
         file_menu = QtGui.QMenu('&File', self)
         file_menu.addAction('&Save', self.save,
@@ -1052,26 +1033,8 @@ class EditorWindow(QtGui.QMainWindow):
 
         self.main_widget = QtGui.QWidget(self)
 
-        
-
-
-
-        plot_layout = QtGui.QHBoxLayout()
-        self.range_slider = QtGui.QSlider(QtCore.Qt.Vertical)
-        self.range_slider.setMinimum(0)
-        self.range_slider.setMaximum(100)
-        self.range_slider.setValue(50)
-        self.range_slider.setTickPosition(QtGui.QSlider.TicksRight)
-        self.range_slider.setTickInterval(10)
-
-        plot_layout.addWidget(figurecanvas)
-        plot_layout.addWidget(self.range_slider)
-
-        
-        max_slider_layout = QtGui.QHBoxLayout()
         self.max_slider = QtGui.QSlider(QtCore.Qt.Horizontal)
-        
-        
+
         self.max_slider.setMinimum(0)
         self.max_slider.setMaximum(100)
         self.max_slider.setValue(viscm_editor.max_Jp)
@@ -1081,15 +1044,8 @@ class EditorWindow(QtGui.QMainWindow):
         self.max_slider_num = QtGui.QLabel(str(viscm_editor.max_Jp))
         self.max_slider_num.setFixedWidth(30)
 
-
-        max_slider_layout.addWidget(QtGui.QLabel("J Max"))
-        max_slider_layout.addWidget(self.max_slider)
-        max_slider_layout.addWidget(self.max_slider_num)
-
-        min_slider_layout = QtGui.QHBoxLayout()
         self.min_slider = QtGui.QSlider(QtCore.Qt.Horizontal)
-        
-        
+
         self.min_slider.setMinimum(0)
         self.min_slider.setMaximum(100)
         self.min_slider.setValue(viscm_editor.min_Jp)
@@ -1099,20 +1055,53 @@ class EditorWindow(QtGui.QMainWindow):
         self.min_slider_num = QtGui.QLabel(str(viscm_editor.min_Jp))
         self.min_slider_num.setFixedWidth(30)
 
-        min_slider_layout.addWidget(QtGui.QLabel("J Min"))
+        max_slider_layout = QtGui.QHBoxLayout()
+        max_slider_layout.addWidget(QtGui.QLabel("End Lightness"))
+        max_slider_layout.addWidget(self.max_slider)
+        max_slider_layout.addWidget(self.max_slider_num)
+        min_slider_layout = QtGui.QHBoxLayout()
+        min_slider_layout.addWidget(QtGui.QLabel("Start Lightness"))
         min_slider_layout.addWidget(self.min_slider)
         min_slider_layout.addWidget(self.min_slider_num)
-        
+
         mainlayout = QtGui.QVBoxLayout(self.main_widget)
-
-
-        mainlayout.addLayout(plot_layout)
+        mainlayout.addWidget(figurecanvas)
         mainlayout.addLayout(max_slider_layout)
         mainlayout.addLayout(min_slider_layout)
 
+        saveAction = QtGui.QAction(QtGui.QIcon('viscm/icons/save.png'),
+                                        'Save', self)
+        saveAction.triggered.connect(self.save)
+
+        self.moveAction = QtGui.QAction(QtGui.QIcon("viscm/icons/move.png"),
+                                        "Drag Control Points", self)
+        self.moveAction.triggered.connect(self.set_move_mode)
+        self.moveAction.setCheckable(True)
+
+        self.addAction = QtGui.QAction(QtGui.QIcon("viscm/icons/add.png"),
+                                        "Add Control Points", self)
+        self.addAction.triggered.connect(self.set_add_mode)
+        self.addAction.setCheckable(True)
+
+        self.removeAction = QtGui.QAction(QtGui.QIcon("viscm/icons/remove.png"),
+                                        "Remove Control Points", self)
+        self.removeAction.triggered.connect(self.set_remove_mode)
+        self.removeAction.setCheckable(True)
+
+        self.toolbar = self.addToolBar('Tools')
+        self.toolbar.addAction(saveAction)
+        self.toolbar.addAction(self.moveAction)
+        self.toolbar.addAction(self.addAction)
+        self.toolbar.addAction(self.removeAction)
+
+        self.moveAction.setChecked(True)
 
         self.main_widget.setFocus()
+        figurecanvas.setFocus()
+        figurecanvas.setFocusPolicy(QtCore.Qt.StrongFocus)
         self.setCentralWidget(self.main_widget)
+
+
     def updatejp(self):
         minval = self.min_slider.value()
         maxval = self.max_slider.value()
@@ -1120,6 +1109,20 @@ class EditorWindow(QtGui.QMainWindow):
         self.min_slider_num.setText(str(minval))
         self.max_slider_num.setText(str(maxval))
 
+    def set_move_mode(self):
+        self.addAction.setChecked(False)
+        self.removeAction.setChecked(False)
+        self.viscm_editor.bezier_builder.mode = "move"
+
+    def set_add_mode(self):
+        self.moveAction.setChecked(False)
+        self.removeAction.setChecked(False)
+        self.viscm_editor.bezier_builder.mode = "add"
+
+    def set_remove_mode(self):
+        self.addAction.setChecked(False)
+        self.moveAction.setChecked(False)
+        self.viscm_editor.bezier_builder.mode = "remove"
 
     def view_gamut(self):
         gamut_figure = self.viscm_editor.plot_3d_gamut()
@@ -1130,12 +1133,10 @@ class EditorWindow(QtGui.QMainWindow):
                                QtGui.QSizePolicy.Expanding)
         FigureCanvas.updateGeometry(figurecanvas)
 
-        
         gamut_window = GamutWindow(figurecanvas, gamut_figure, parent=self)
         gamut_window.resize(1000, 600)
 
         gamut_window.show()
-
 
     def fileQuit(self):
         self.close()
@@ -1145,19 +1146,19 @@ class EditorWindow(QtGui.QMainWindow):
 
     def save(self):
         fileName = QtGui.QFileDialog.getSaveFileName(caption="Save file",
-                                    directory=self.cmapname + ".py",
-                                    filter="Python Files (*.py)")
+                                                directory=self.cmapname + ".py",
+                                                filter="Python Files (*.py)")
         self.viscm_editor.save_colormap(fileName)
+
     def loadviewer(self):
-        
         newfig = plt.figure()
         newcanvas = FigureCanvas(newfig)
         cm = self.viscm_editor.show_viscm()
         v = viscm(cm, name="test_cm", figure=newfig)
-        
+
         FigureCanvas.setSizePolicy(newcanvas,
-                               QtGui.QSizePolicy.Expanding,
-                               QtGui.QSizePolicy.Expanding)
+                                    QtGui.QSizePolicy.Expanding,
+                                    QtGui.QSizePolicy.Expanding)
         FigureCanvas.updateGeometry(newcanvas)
 
         newwindow = ViewerWindow(newcanvas, v, "test_cm", parent=self)
@@ -1169,18 +1170,18 @@ class EditorWindow(QtGui.QMainWindow):
         QtGui.QMessageBox.about(self, "VISCM",
             "Copyright (C) 2015 Nathaniel Smith\nCopyright (C) 2015 Stefan van der Walt")
 
+
 class GamutWindow(QtGui.QMainWindow):
     def __init__(self, figurecanvas, figure, parent=None):
-        QtGui.QMainWindow.__init__(self,parent)
+        QtGui.QMainWindow.__init__(self, parent)
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
         self.figure = figure
 
-
         file_menu = QtGui.QMenu('&File', self)
         file_menu.addAction('&Save', self.save,
-                                QtCore.Qt.CTRL + QtCore.Qt.Key_S)
+                            QtCore.Qt.CTRL + QtCore.Qt.Key_S)
         file_menu.addAction('&Quit', self.fileQuit,
-                                QtCore.Qt.CTRL + QtCore.Qt.Key_Q)
+                            QtCore.Qt.CTRL + QtCore.Qt.Key_Q)
 
         help_menu = QtGui.QMenu('&Help', self)
         help_menu.addAction('&About', self.about)
@@ -1195,22 +1196,24 @@ class GamutWindow(QtGui.QMainWindow):
         l.addWidget(figurecanvas)
 
         self.main_widget.setFocus()
-        self.setCentralWidget(self.main_widget)
 
+        self.setCentralWidget(self.main_widget)
 
     def save(self):
         fileName = QtGui.QFileDialog.getSaveFileName(caption="Save file",
-                                    directory="3d_gamut.png",
-                                    filter="Image Files (*.png *.jpg *.bmp)")
+                                                    directory="3d_gamut.png",
+                                                    filter="Image Files (*.png *.jpg *.bmp)")
         self.figure.savefig(fileName)
+
     def fileQuit(self):
         self.close()
 
     def closeEvent(self, ce):
         self.fileQuit()
+
     def about(self):
         QtGui.QMessageBox.about(self, "VISCM",
-            "Copyright (C) 2015 Nathaniel Smith\nCopyright (C) 2015 Stefan van der Walt")
+            "Copyright (C) 2015 Nathaniel Smith\newcanvasCopyright (C) 2015 Stefan van der Walt")
 
 
 if __name__ == "__main__":
