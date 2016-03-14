@@ -40,6 +40,9 @@ from matplotlib.lines import Line2D
 
 from .minimvc import Trigger
 
+# Added workaround for matplotlib-Qt key event bug
+from PyQt4 import QtGui, QtCore
+
 class BezierModel(object):
     def __init__(self, xp, yp):
         self._xp = list(xp)
@@ -124,11 +127,16 @@ class BezierBuilder(object):
 
         self.bezier_model.trigger.add_callback(self._refresh)
         self._refresh()
+        self.mode = "Move"
 
     def __del__(self):
         self.bezier_model.trigger.remove_callback(self._refresh)
 
     def on_button_press(self, event):
+
+        # Workaround for matplotlib-pyqt keymod bug
+        modkey = event.guiEvent.modifiers()
+
         # Ignore clicks outside axes
         if event.inaxes != self.ax:
             return
@@ -136,10 +144,10 @@ class BezierBuilder(object):
         if res and event.key is None:
             # Grabbing a point to drag
             self._index = ind["ind"][0]
-        if res and event.key == "control":
+        if res and (event.key == "control" or modkey == QtCore.Qt.ControlModifier or self.mode == "remove"):
             # Control-click deletes
             self.bezier_model.remove_point(ind["ind"][0])
-        if event.key == "shift":
+        if (event.key == "shift" or modkey == QtCore.Qt.ShiftModifier or self.mode == "add"):
             # Adding a new point. Find the two closest points and insert it in
             # between them.
             total_squared_dists = []
