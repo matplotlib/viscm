@@ -136,6 +136,7 @@ class BezierBuilder(object):
 
         # Workaround for matplotlib-pyqt keymod bug
         modkey = event.guiEvent.modifiers()
+        print(type(event), type(event.guiEvent))
 
         # Ignore clicks outside axes
         if event.inaxes != self.ax:

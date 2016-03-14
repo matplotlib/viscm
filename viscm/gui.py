@@ -474,30 +474,8 @@ class viscm_editor(object):
         self.figure = figure
         axes = _viscm_editor_axes(self.figure)
 
-        '''
-        ax_jp_min = plt.axes([0.1, 0.1, 0.5, 0.03], axisbg=axcolor)
-        ax_jp_min.imshow(np.linspace(0, 100, 101).reshape(1, -1), cmap='gray')
-        ax_jp_min.set_xlim(0, 100)
-
-        ax_jp_max = plt.axes([0.1, 0.15, 0.5, 0.03], axisbg=axcolor)
-        ax_jp_max.imshow(np.linspace(0, 100, 101).reshape(1, -1), cmap='gray')
-        '''
-
         self.min_Jp = min_Jp
         self.max_Jp = max_Jp
-        '''
-        self.jp_min_slider = Slider(ax_jp_min,
-                                    r"$J'_\mathrm{min}$",
-                                    0, 100,
-                                    valinit=min_Jp)
-        self.jp_max_slider = Slider(ax_jp_max,
-                                    r"$J'_\mathrm{max}$",
-                                    0, 100,
-                                    valinit=max_Jp)
-
-        self.jp_min_slider.on_changed(self._jp_update)
-        self.jp_max_slider.on_changed(self._jp_update)
-        '''
 
         if xp is None:
             xp = [-2.0591553836234482, 59.377014829142524,
@@ -972,7 +950,7 @@ class ViewerWindow(QtGui.QMainWindow):
         self.menuBar().addMenu(file_menu)
         self.menuBar().addMenu(options_menu)
         self.menuBar().addMenu(help_menu)
-        self.setWindowTitle("VISCM Viewing : " + cmapname)
+        self.setWindowTitle("VISCM Editing : " + cmapname)
 
         self.viscm = viscm
         self.figurecanvas = figurecanvas
@@ -1009,7 +987,10 @@ class EditorWindow(QtGui.QMainWindow):
         QtGui.QMainWindow.__init__(self, parent)
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
         self.viscm_editor = viscm_editor
+        if cmapname == None:
+            cmapname = "new_colormap.py"
         self.cmapname = cmapname
+
 
         file_menu = QtGui.QMenu('&File', self)
         file_menu.addAction('&Save', self.save,
@@ -1146,7 +1127,7 @@ class EditorWindow(QtGui.QMainWindow):
 
     def save(self):
         fileName = QtGui.QFileDialog.getSaveFileName(caption="Save file",
-                                                directory=self.cmapname + ".py",
+                                                directory=self.cmapname,
                                                 filter="Python Files (*.py)")
         self.viscm_editor.save_colormap(fileName)
 
