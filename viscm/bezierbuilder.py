@@ -40,83 +40,60 @@ from matplotlib.lines import Line2D
 
 from .minimvc import Trigger
 
-# Added workaround for matplotlib-Qt key event bug
-from PyQt4 import QtGui, QtCore
-
-class BezierModel(object):
-    def __init__(self, xp, yp):
+class ControlPointModel(object):
+    def __init__(self, xp, yp, fixed=None):
+        # fixed is either None (if no point is fixed) or and index of a fixed
+        # point
         self._xp = list(xp)
         self._yp = list(yp)
+        self._fixed = fixed
 
         self.trigger = Trigger()
 
     def get_control_points(self):
-        return list(self._xp), list(self._yp)
-
-    def get_bezier_points(self, num=200):
-        return self.get_bezier_points_at(np.linspace(0, 1, num))
-
-    def get_bezier_points_at(self, at, grid=256):
-        at = np.asarray(at)
-        # The Bezier curve is parameterized by a value t which ranges from 0
-        # to 1. However, there is a nonlinear relationship between this value
-        # and arclength. We want to parameterize by t', which measures
-        # normalized arclength. To do this, we have to calculate the function
-        # arclength(t), and then invert it.
-        t = np.linspace(0, 1, grid)
-        x, y = Bezier(list(zip(self._xp, self._yp)), t).T
-        x_deltas = np.diff(x)
-        y_deltas = np.diff(y)
-        arclength_deltas = np.empty(t.shape)
-        arclength_deltas[0] = 0
-        np.hypot(x_deltas, y_deltas, out=arclength_deltas[1:])
-        arclength = np.cumsum(arclength_deltas)
-        arclength /= arclength[-1]
-        # Now (t, arclength) is a LUT describing the t -> arclength mapping
-        # Invert it to get at -> t
-        at_t = np.interp(at, arclength, t)
-        # And finally look up at the Bezier values at at_t
-        # (Might be quicker to np.interp againts x and y, but eh, doesn't
-        # really matter.)
-        return Bezier(list(zip(self._xp, self._yp)), at_t).T
+        return list(self._xp), list(self._yp), self._fixed
 
     def add_point(self, i, new_x, new_y):
         self._xp.insert(i, new_x)
         self._yp.insert(i, new_y)
+        if self._fixed is not None and i < self._fixed:
+            self._fixed += 1
         self.trigger.fire()
 
     def remove_point(self, i):
+        if i == self._fixed:
+            return
         del self._xp[i]
         del self._yp[i]
+        if self._fixed is not None and i < self._fixed:
+            self._fixed -= 1
         self.trigger.fire()
 
     def move_point(self, i, new_x, new_y):
+        if i == self._fixed:
+            return
         self._xp[i] = new_x
         self._yp[i] = new_y
         self.trigger.fire()
 
-    def set_control_points(self, xp, yp):
+    def set_control_points(self, xp, yp, fixed=None):
         self._xp = list(xp)
         self._yp = list(yp)
+        self._fixed = fixed
         self.trigger.fire()
 
-class BezierBuilder(object):
-    """Bézier curve interactive builder.
 
-    """
-    def __init__(self, ax, bezier_model):
+class ControlPointBuilder(object):
+    def __init__(self, ax, control_point_model):
         self.ax = ax
-        self.bezier_model = bezier_model
+        self.control_point_model = control_point_model
 
         self.canvas = self.ax.figure.canvas
-        xp, yp = self.bezier_model.get_control_points()
+        xp, yp, _ = self.control_point_model.get_control_points()
         self.control_polygon = Line2D(xp, yp,
                                       ls="--", c="#666666", marker="x",
                                       mew=2, mec="#204a87")
         self.ax.add_line(self.control_polygon)
-        x, y = self.bezier_model.get_bezier_points()
-        self.bezier_curve = Line2D(x, y)
-        self.ax.add_line(self.bezier_curve)
 
         # Event handler for mouse clicking
         self.canvas.mpl_connect('button_press_event', self.on_button_press)
@@ -125,19 +102,10 @@ class BezierBuilder(object):
 
         self._index = None  # Active vertex
 
-        self.bezier_model.trigger.add_callback(self._refresh)
+        self.control_point_model.trigger.add_callback(self._refresh)
         self._refresh()
-        self.mode = "Move"
-
-    def __del__(self):
-        self.bezier_model.trigger.remove_callback(self._refresh)
 
     def on_button_press(self, event):
-
-        # Workaround for matplotlib-pyqt keymod bug
-        modkey = event.guiEvent.modifiers()
-        # print(type(event), type(event.guiEvent))
-
         # Ignore clicks outside axes
         if event.inaxes != self.ax:
             return
@@ -145,10 +113,10 @@ class BezierBuilder(object):
         if res and event.key is None:
             # Grabbing a point to drag
             self._index = ind["ind"][0]
-        if res and (event.key == "control" or modkey == QtCore.Qt.ControlModifier or self.mode == "remove"):
+        if res and event.key == "control":
             # Control-click deletes
-            self.bezier_model.remove_point(ind["ind"][0])
-        if (event.key == "shift" or modkey == QtCore.Qt.ShiftModifier or self.mode == "add"):
+            self.control_point_model.remove_point(ind["ind"][0])
+        if event.key == "shift":
             # Adding a new point. Find the two closest points and insert it in
             # between them.
             total_squared_dists = []
@@ -161,7 +129,9 @@ class BezierBuilder(object):
                 total_squared_dists.append(dist)
             best = np.argmin(total_squared_dists)
 
-            self.bezier_model.add_point(best + 1, event.xdata, event.ydata)
+            self.control_point_model.add_point(best + 1,
+                                               event.xdata,
+                                               event.ydata)
 
     def on_button_release(self, event):
         if event.button != 1:
@@ -175,14 +145,123 @@ class BezierBuilder(object):
             return
         x, y = event.xdata, event.ydata
 
-        self.bezier_model.move_point(self._index, x, y)
+        self.control_point_model.move_point(self._index, x, y)
 
     def _refresh(self):
-        xp, yp = self.bezier_model.get_control_points()
+        xp, yp, _ = self.control_point_model.get_control_points()
         self.control_polygon.set_data(xp, yp)
+
+
+################################################################
+
+
+def compute_bezier_points(xp, yp, at, grid=256):
+    at = np.asarray(at)
+    # The Bezier curve is parameterized by a value t which ranges from 0
+    # to 1. However, there is a nonlinear relationship between this value
+    # and arclength. We want to parameterize by t', which measures
+    # normalized arclength. To do this, we have to calculate the function
+    # arclength(t), and then invert it.
+    t = np.linspace(0, 1, grid)
+    x, y = Bezier(list(zip(xp, yp)), t).T
+    x_deltas = np.diff(x)
+    y_deltas = np.diff(y)
+    arclength_deltas = np.empty(t.shape)
+    arclength_deltas[0] = 0
+    np.hypot(x_deltas, y_deltas, out=arclength_deltas[1:])
+    arclength = np.cumsum(arclength_deltas)
+    arclength /= arclength[-1]
+    # Now (t, arclength) is a lookup table describing the t -> arclength
+    # mapping. Invert it to get at -> t
+    at_t = np.interp(at, arclength, t)
+    # And finally look up at the Bezier values at at_t
+    # (Might be quicker to np.interp againts x and y, but eh, doesn't
+    # really matter.)
+
+    # print(xp)
+    return Bezier(list(zip(xp, yp)), at_t).T
+
+
+class SingleBezierCurveModel(object):
+    def __init__(self, control_point_model):
+        self.control_point_model = control_point_model
+        x, y = self.get_bezier_points()
+        self.bezier_curve = Line2D(x, y)
+        self.trigger = self.control_point_model.trigger
+        self.trigger.add_callback(self._refresh)
+
+    def get_bezier_points(self, num=200):
+        return self.get_bezier_points_at(np.linspace(0, 1, num))
+
+    def get_bezier_points_at(self, at, grid=256):
+        xp, yp, _ = self.control_point_model.get_control_points()
+        return compute_bezier_points(xp, yp, at, grid=grid)
+
+    def _refresh(self):
+        x, y = self.get_bezier_points()
+        self.bezier_curve.set_data(x, y)
+        # self.canvas.draw()
+
+
+class TwoBezierCurveModel(object):
+    def __init__(self, control_point_model):
+        self.control_point_model = control_point_model
+        self.trigger = self.control_point_model.trigger
+
+    def get_bezier_points(self, num=200):
+        return self.get_bezier_points_at(np.linspace(0, 1, num))
+
+    def get_bezier_points_at(self, at, grid=256):
+        at = np.asarray(at)
+        # orig_shape = at.shape
+        # at = np.atleast1d(at)
+        low_mask = (at < 0.5)
+        high_mask = (at >= 0.5)
+
+        xp, yp, fixed = self.control_point_model.get_control_points()
+        assert fixed is not None
+
+        low_xp = xp[:fixed + 1]
+        low_yp = yp[:fixed + 1]
+        high_xp = xp[fixed:]
+        high_yp = yp[fixed:]
+
+        # XX FIXME: This is wrong:
+        # - we need to calculate the length of each arm
+        # - cut one off
+        # - rescale low and high values (which are currently in [0, 0.5] and
+        #   [0.5, 1]) to refer to locations in these two arms
+
+        low_points = compute_bezier_points(low_xp, low_yp,
+                                           at[low_mask], grid=grid)
+        high_points = compute_bezier_points(high_xp, high_yp,
+                                            at[high_mask], grid=grid)
+
+        out = np.empty_like(at)
+        out[low_mask] = low_points
+        out[high_mask] = high_points
+        # out = out.reshape(orig_shape)
+        return out
+
+
+class BezierCurveView(object):
+    def __init__(self, ax, bezier_curve_model):
+        self.ax = ax
+        self.bezier_curve_model = bezier_curve_model
+
+        self.canvas = self.ax.figure.canvas
         x, y = self.bezier_model.get_bezier_points()
+        self.bezier_curve = Line2D(x, y)
+        self.ax.add_line(self.bezier_curve)
+
+        self.bezier_curve_model.trigger.add_callback(self._refresh)
+        self._refresh()
+
+    def _refresh(self):
+        x, y = self.bezier_curve_model.get_bezier_points()
         self.bezier_curve.set_data(x, y)
         self.canvas.draw()
+
 
 # We used to use scipy.special.binom here, but reimplementing it ourself lets
 # us avoid pulling in a dependency scipy just for that one function.

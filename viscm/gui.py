@@ -467,7 +467,7 @@ def _viscm_editor_axes(fig):
 class viscm_editor(object):
     def __init__(self, figure=None, uniform_space="CAM02-UCS",
                  min_Jp=15, max_Jp=95, xp=None, yp=None):
-        from .bezierbuilder import BezierModel, BezierBuilder
+        from .bezierbuilder import SingleBezierCurveModel, ControlPointBuilder, ControlPointModel
 
         self._uniform_space = uniform_space
 
@@ -486,15 +486,18 @@ class viscm_editor(object):
             yp = [-25.664893617021221, -21.941489361702082,
                   38.874113475177353, 20.567375886524871,
                   32.047872340425585]
+        self.control_points = ControlPointModel(xp, yp)
 
-        self.bezier_model = BezierModel(xp, yp)
+        #self.bezier_model = BezierModel(xp, yp)
+        self.bezier_model = SingleBezierCurveModel(self.control_points)
+        axes['bezier'].add_line(self.bezier_model.bezier_curve)
         self.cmap_model = BezierCMapModel(self.bezier_model,
                                           self.min_Jp,
                                           self.max_Jp,
                                           uniform_space)
         self.highlight_point_model = HighlightPointModel(self.cmap_model, 0.5)
 
-        self.bezier_builder = BezierBuilder(axes['bezier'], self.bezier_model)
+        self.bezier_builder = ControlPointBuilder(axes['bezier'], self.control_points)
         self.bezier_gamut_viewer = GamutViewer2D(axes['bezier'],
                                                  self.highlight_point_model,
                                                  uniform_space)
