@@ -163,13 +163,17 @@ def compute_bezier_points(xp, yp, at, grid=256):
     # normalized arclength. To do this, we have to calculate the function
     # arclength(t), and then invert it.
     t = np.linspace(0, 1, grid)
-    x, y = Bezier(list(zip(xp, yp)), t).T
-    x_deltas = np.diff(x)
-    y_deltas = np.diff(y)
-    arclength_deltas = np.empty(t.shape)
-    arclength_deltas[0] = 0
-    np.hypot(x_deltas, y_deltas, out=arclength_deltas[1:])
-    arclength = np.cumsum(arclength_deltas)
+
+    # x, y = Bezier(list(zip(xp, yp)), t).T
+    # x_deltas = np.diff(x)
+    # y_deltas = np.diff(y)
+    # arclength_deltas = np.empty(t.shape)
+    # arclength_deltas[0] = 0
+    # np.hypot(x_deltas, y_deltas, out=arclength_deltas[1:])
+    # arclength = np.cumsum(arclength_deltas)
+    # print(arclength)
+
+    arclength = compute_arc_length(xp, yp, t)   
     arclength /= arclength[-1]
     # Now (t, arclength) is a lookup table describing the t -> arclength
     # mapping. Invert it to get at -> t
@@ -178,8 +182,22 @@ def compute_bezier_points(xp, yp, at, grid=256):
     # (Might be quicker to np.interp againts x and y, but eh, doesn't
     # really matter.)
 
-    # print(xp)
+    # print(Bezier(list(zip(xp, yp)), at_t).T)
+    # print(Bezier(list(zip(xp, yp)), at_t).T.shape)
     return Bezier(list(zip(xp, yp)), at_t).T
+
+def compute_arc_length(xp, yp, t=None, grid=256):
+    if t is None:
+        t = np.linspace(0, 1, grid)
+    x, y = Bezier(list(zip(xp, yp)), t).T
+    x_deltas = np.diff(x)
+    y_deltas = np.diff(y)
+    arclength_deltas = np.empty(t.shape)
+    if t.size == 0:
+        return np.asarray([0])
+    arclength_deltas[0] = 0
+    np.hypot(x_deltas, y_deltas, out=arclength_deltas[1:])
+    return np.cumsum(arclength_deltas)
 
 
 class SingleBezierCurveModel(object):
@@ -205,14 +223,20 @@ class SingleBezierCurveModel(object):
 
 class TwoBezierCurveModel(object):
     def __init__(self, control_point_model):
+       
         self.control_point_model = control_point_model
+        x, y = self.get_bezier_points()
+        self.bezier_curve = Line2D(x, y)
         self.trigger = self.control_point_model.trigger
+        self.trigger.add_callback(self._refresh)
 
     def get_bezier_points(self, num=200):
         return self.get_bezier_points_at(np.linspace(0, 1, num))
 
     def get_bezier_points_at(self, at, grid=256):
         at = np.asarray(at)
+        if at.ndim == 0:
+            at = np.array([at])
         # orig_shape = at.shape
         # at = np.atleast1d(at)
         low_mask = (at < 0.5)
@@ -232,16 +256,41 @@ class TwoBezierCurveModel(object):
         # - rescale low and high values (which are currently in [0, 0.5] and
         #   [0.5, 1]) to refer to locations in these two arms
 
-        low_points = compute_bezier_points(low_xp, low_yp,
-                                           at[low_mask], grid=grid)
-        high_points = compute_bezier_points(high_xp, high_yp,
-                                            at[high_mask], grid=grid)
+        low_al = compute_arc_length(low_xp, low_yp).max()
+        high_al = compute_arc_length(high_xp, high_yp).max()
+        print("prev", low_al, high_al)
 
-        out = np.empty_like(at)
-        out[low_mask] = low_points
-        out[high_mask] = high_points
+        sf = min(low_al, high_al) / max(low_al, high_al)
+
+        high_at = at[high_mask]
+        low_at = at[low_mask]
+        # print(low_at, high_at)
+        if high_al < low_al:
+            high_at = high_at * 2 - 1
+            low_at = (0.5 - (0.5 - low_at) * sf) * 2
+        else:
+            high_at = (0.5 + (high_at - 0.5) * sf) * 2 - 1
+            low_at = low_at * 2 
+
+
+        low_points = compute_bezier_points(low_xp, low_yp,
+                                           low_at, grid=grid)
+        high_points = compute_bezier_points(high_xp, high_yp,
+                                            high_at, grid=grid)
+        # print(low_points.shape, high_points.shape)
+        
+
+        # out = np.empty_like(at)
+        # out[low_mask] = low_points
+        # out[high_mask] = high_points
+        out = np.concatenate([low_points,high_points], 1)
+        # print(out.shape)
         # out = out.reshape(orig_shape)
+        # print(out)
         return out
+    def _refresh(self):
+        x, y = self.get_bezier_points()
+        self.bezier_curve.set_data(x, y)
 
 
 class BezierCurveView(object):

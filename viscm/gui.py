@@ -466,8 +466,8 @@ def _viscm_editor_axes(fig):
 
 class viscm_editor(object):
     def __init__(self, figure=None, uniform_space="CAM02-UCS",
-                 min_Jp=15, max_Jp=95, xp=None, yp=None):
-        from .bezierbuilder import SingleBezierCurveModel, ControlPointBuilder, ControlPointModel
+                 min_Jp=15, max_Jp=95, xp=None, yp=None, diverging=False):
+        from .bezierbuilder import SingleBezierCurveModel, TwoBezierCurveModel, ControlPointBuilder, ControlPointModel
 
         self._uniform_space = uniform_space
 
@@ -481,29 +481,56 @@ class viscm_editor(object):
             xp = [-2.0591553836234482, 59.377014829142524,
                   43.552546744036135, 4.7670857511283202,
                   -9.5059638942617539]
+            if diverging:
+                xp = [-9, 4, 43, 59, 0, -20, -30, 20, 1]
 
         if yp is None:
             yp = [-25.664893617021221, -21.941489361702082,
                   38.874113475177353, 20.567375886524871,
                   32.047872340425585]
-        self.control_points = ControlPointModel(xp, yp)
+            if diverging:
+                yp = [32, 20, 38, -21, 0, 21, -38, -20, -5] 
+
+        fixed = None
+        BezierModel = SingleBezierCurveModel
+        startJp = 0.5
+        
+        if diverging: 
+            fixed = 4
+            BezierModel = TwoBezierCurveModel
+            startJp = 0.75
+        
+        self.control_point_model = ControlPointModel(xp, yp, fixed=fixed)
 
         #self.bezier_model = BezierModel(xp, yp)
-        self.bezier_model = SingleBezierCurveModel(self.control_points)
+        self.bezier_model = BezierModel(self.control_point_model)
         axes['bezier'].add_line(self.bezier_model.bezier_curve)
+
         self.cmap_model = BezierCMapModel(self.bezier_model,
                                           self.min_Jp,
                                           self.max_Jp,
-                                          uniform_space)
-        self.highlight_point_model = HighlightPointModel(self.cmap_model, 0.5)
+                                          uniform_space,
+                                          diverging=diverging)
+        
 
-        self.bezier_builder = ControlPointBuilder(axes['bezier'], self.control_points)
+        self.highlight_point_model = HighlightPointModel(self.cmap_model, startJp)
+        self.highlight_point_model1 = None
+
+        if diverging:
+            self.highlight_point_model1 = HighlightPointModel(self.cmap_model, 1 - startJp)
+
+        self.bezier_builder = ControlPointBuilder(axes['bezier'],
+                                                  self.control_point_model)
+
         self.bezier_gamut_viewer = GamutViewer2D(axes['bezier'],
                                                  self.highlight_point_model,
                                                  uniform_space)
-        tmp = HighlightPoint2DView(axes['bezier'],
+        
+        self.bezier_highlight_point_view = HighlightPoint2DView(axes['bezier'],
                                    self.highlight_point_model)
-        self.bezier_highlight_point_view = tmp
+        if diverging:
+            self.bezier_highlight_point_view1 = HighlightPoint2DView(axes['bezier'],
+                                       self.highlight_point_model1)
 
         # draw_pure_hue_angles(axes['bezier'])
         axes['bezier'].set_xlim(-100, 100)
@@ -512,7 +539,8 @@ class viscm_editor(object):
         self.cmap_view = CMapView(axes['cm'], self.cmap_model)
         self.cmap_highlighter = HighlightPointBuilder(
             axes['cm'],
-            self.highlight_point_model)
+            self.highlight_point_model,
+            self.highlight_point_model1)
 
         self.axes = axes
 
@@ -600,10 +628,11 @@ class viscm_editor(object):
 
 
 class BezierCMapModel(object):
-    def __init__(self, bezier_model, min_Jp, max_Jp, uniform_space):
+    def __init__(self, bezier_model, min_Jp, max_Jp, uniform_space, diverging=False):
         self.bezier_model = bezier_model
         self.min_Jp = min_Jp
         self.max_Jp = max_Jp
+        self.diverging = diverging
         self.trigger = Trigger()
         self.uniform_to_sRGB1 = cspace_converter(uniform_space, "sRGB1")
 
@@ -617,6 +646,8 @@ class BezierCMapModel(object):
     def get_Jpapbp_at(self, at):
         ap, bp = self.bezier_model.get_bezier_points_at(at)
         Jp = (self.max_Jp - self.min_Jp) * at + self.min_Jp
+        if self.diverging:
+            Jp = (self.max_Jp - self.min_Jp) * abs(2 * at - 1) + self.min_Jp
         return Jp, ap, bp
 
     def get_Jpapbp(self, num=200):
@@ -682,21 +713,28 @@ class HighlightPointModel(object):
 
 
 class HighlightPointBuilder(object):
-    def __init__(self, ax, highlight_point_model):
+    def __init__(self, ax, highlight_point_model_a, highlight_point_model_b):
         self.ax = ax
-        self.highlight_point_model = highlight_point_model
+        self.highlight_point_model_b = highlight_point_model_b
+        self.highlight_point_model_a = highlight_point_model_a
 
         self.canvas = self.ax.figure.canvas
         self._in_drag = False
+
+        self.marker_line_a = self.ax.axhline(highhlight_point_model_a.get_point(),
+                                           linewidth=3, color="r")
+        if self.highlight_point_model_b:
+            self.marker_line_b = self.ax.axhline(highlight_point_model_b.get_point(),
+                                           linewidth=3, color="r")
+
         self.canvas.mpl_connect("button_press_event", self._on_button_press)
         self.canvas.mpl_connect("motion_notify_event", self._on_motion)
         self.canvas.mpl_connect("button_release_event",
                                 self._on_button_release)
 
-        self.marker_line = self.ax.axhline(highlight_point_model.get_point(),
-                                           linewidth=3, color="r")
-
-        self.highlight_point_model.trigger.add_callback(self._refresh)
+        self.highlight_point_model_a.trigger.add_callback(self._refresh)
+        if highlight_point_model_b:
+            self.highlight_point_model_a.trigger.add_callback(self._refresh)
 
     def _on_button_press(self, event):
         if event.inaxes != self.ax:
@@ -704,11 +742,15 @@ class HighlightPointBuilder(object):
         if event.button != 1:
             return
         self._in_drag = True
-        self.highlight_point_model.set_point(event.ydata)
+        self.highlight_point_model_a.set_point(event.ydata)
+        if self.highlight_point_model_b:
+            self.highlight_point_model_b.set_point(1 - event.ydata)
 
     def _on_motion(self, event):
         if self._in_drag and event.ydata is not None:
-            self.highlight_point_model.set_point(event.ydata)
+            self.highlight_point_model_a.set_point(event.ydata)
+            if self.highlight_point_model_b:
+                self.highlight_point_model_b.set_point(1 - event.ydata)
 
     def _on_button_release(self, event):
         if event.button != 1:
@@ -716,8 +758,10 @@ class HighlightPointBuilder(object):
         self._in_drag = False
 
     def _refresh(self):
-        point = self.highlight_point_model.get_point()
-        self.marker_line.set_data([0, 1], [point, point])
+        point = self.highlight_point_model_a.get_point()
+        self.marker_line_a.set_data([0, 1], [point, point])
+        if self.highlight_point_model_b:
+            self.marker_line_b.set_data([0, 1], [1 - point, 1 - point])
         self.canvas.draw()
 
 
@@ -851,6 +895,9 @@ def main(argv):
                         "(which turn out to have had a small bug in the "
                         "assumed sRGB viewing conditions) from their bezier "
                         "curves.")
+    parser.add_argument("--diverging",
+                        default=False, action="store_true",
+                        help="Editing diverging colormaps")
     parser.add_argument("--save", metavar="FILE",
                         default=None,
                         help="Immediately save visualization to a file "
@@ -907,9 +954,7 @@ def main(argv):
         # Hold a reference so it doesn't get GC'ed
         fig = plt.figure()
         figureCanvas = FigureCanvas(fig)
-        v = viscm_editor(figure=fig, uniform_space=uniform_space, **params)
-
-        # figureCanvas = FigureCanvas(v.figure)
+        v = viscm_editor(figure=fig, uniform_space=uniform_space, diverging=args.diverging, **params)
         mainwindow = EditorWindow(figureCanvas, v, args.colormap)
     else:
         raise RuntimeError("can't happen")
@@ -982,7 +1027,8 @@ class ViewerWindow(QtGui.QMainWindow):
 
     def about(self):
         QtGui.QMessageBox.about(self, "VISCM",
-            "Copyright (C) 2015 Nathaniel Smith\nCopyright (C) 2015 Stefan van der Walt")
+                                "Copyright (C) 2015 Nathaniel Smith\n" +
+                                "Copyright (C) 2015 Stefan van der Walt")
 
 
 class EditorWindow(QtGui.QMainWindow):
@@ -1085,7 +1131,6 @@ class EditorWindow(QtGui.QMainWindow):
         figurecanvas.setFocusPolicy(QtCore.Qt.StrongFocus)
         self.setCentralWidget(self.main_widget)
 
-
     def updatejp(self):
         minval = self.min_slider.value()
         maxval = self.max_slider.value()
@@ -1152,7 +1197,8 @@ class EditorWindow(QtGui.QMainWindow):
 
     def about(self):
         QtGui.QMessageBox.about(self, "VISCM",
-            "Copyright (C) 2015 Nathaniel Smith\nCopyright (C) 2015 Stefan van der Walt")
+                                "Copyright (C) 2015 Nathaniel Smith\n" +
+                                "Copyright (C) 2015 Stefan van der Walt")
 
 
 class GamutWindow(QtGui.QMainWindow):
@@ -1185,8 +1231,8 @@ class GamutWindow(QtGui.QMainWindow):
 
     def save(self):
         fileName = QtGui.QFileDialog.getSaveFileName(caption="Save file",
-                                                    directory="3d_gamut.png",
-                                                    filter="Image Files (*.png *.jpg *.bmp)")
+                                directory="3d_gamut.png",
+                                filter="Image Files (*.png *.jpg *.bmp)")
         self.figure.savefig(fileName)
 
     def fileQuit(self):
@@ -1197,7 +1243,8 @@ class GamutWindow(QtGui.QMainWindow):
 
     def about(self):
         QtGui.QMessageBox.about(self, "VISCM",
-            "Copyright (C) 2015 Nathaniel Smith\newcanvasCopyright (C) 2015 Stefan van der Walt")
+                                "Copyright (C) 2015 Nathaniel Smith\n" +
+                                "Copyright (C) 2015 Stefan van der Walt")
 
 
 if __name__ == "__main__":
