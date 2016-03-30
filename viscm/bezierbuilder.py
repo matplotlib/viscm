@@ -34,6 +34,7 @@ $ python bezier_builder.py
 """
 
 import numpy as np
+from scipy.ndimage.filters import gaussian_filter1d
 from math import factorial
 
 from matplotlib.lines import Line2D
@@ -164,14 +165,7 @@ def compute_bezier_points(xp, yp, at, grid=256):
     # arclength(t), and then invert it.
     t = np.linspace(0, 1, grid)
 
-    # x, y = Bezier(list(zip(xp, yp)), t).T
-    # x_deltas = np.diff(x)
-    # y_deltas = np.diff(y)
-    # arclength_deltas = np.empty(t.shape)
-    # arclength_deltas[0] = 0
-    # np.hypot(x_deltas, y_deltas, out=arclength_deltas[1:])
-    # arclength = np.cumsum(arclength_deltas)
-    # print(arclength)
+
 
     arclength = compute_arc_length(xp, yp, t)   
     arclength /= arclength[-1]
@@ -182,8 +176,7 @@ def compute_bezier_points(xp, yp, at, grid=256):
     # (Might be quicker to np.interp againts x and y, but eh, doesn't
     # really matter.)
 
-    # print(Bezier(list(zip(xp, yp)), at_t).T)
-    # print(Bezier(list(zip(xp, yp)), at_t).T.shape)
+
     return Bezier(list(zip(xp, yp)), at_t).T
 
 def compute_arc_length(xp, yp, t=None, grid=256):
@@ -258,13 +251,11 @@ class TwoBezierCurveModel(object):
 
         low_al = compute_arc_length(low_xp, low_yp).max()
         high_al = compute_arc_length(high_xp, high_yp).max()
-        print("prev", low_al, high_al)
 
         sf = min(low_al, high_al) / max(low_al, high_al)
 
         high_at = at[high_mask]
         low_at = at[low_mask]
-        # print(low_at, high_at)
         if high_al < low_al:
             high_at = high_at * 2 - 1
             low_at = (0.5 - (0.5 - low_at) * sf) * 2
@@ -277,16 +268,16 @@ class TwoBezierCurveModel(object):
                                            low_at, grid=grid)
         high_points = compute_bezier_points(high_xp, high_yp,
                                             high_at, grid=grid)
-        # print(low_points.shape, high_points.shape)
         
 
         # out = np.empty_like(at)
         # out[low_mask] = low_points
         # out[high_mask] = high_points
         out = np.concatenate([low_points,high_points], 1)
-        # print(out.shape)
         # out = out.reshape(orig_shape)
-        # print(out)
+
+
+
         return out
     def _refresh(self):
         x, y = self.get_bezier_points()
@@ -312,8 +303,9 @@ class BezierCurveView(object):
         self.canvas.draw()
 
 
-# We used to use scipy.special.binom here, but reimplementing it ourself lets
-# us avoid pulling in a dependency scipy just for that one function.
+# We used to use scipy.special.binom and scipy.ndimage.filters.gaussian_filter1d
+# here, but reimplementing it ourself lets us avoid pulling in a dependency 
+# scipy just for that one function.
 def binom(n, k):
     return factorial(n) * 1.0 / (factorial(k) * factorial(n - k))
 
@@ -340,3 +332,4 @@ def Bezier(points, at):
     for ii in range(N):
         curve += np.outer(Bernstein(N - 1, ii)(at_flat), points[ii])
     return curve.reshape(at.shape + (2,))
+
