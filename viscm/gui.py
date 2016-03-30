@@ -21,6 +21,7 @@ from matplotlib.gridspec import GridSpec
 import matplotlib.colors
 from matplotlib.colors import LinearSegmentedColormap
 
+from scipy.ndimage.filters import gaussian_filter1d
 
 from colorspacious import (cspace_converter, cspace_convert,
                            CIECAM02Space, CIECAM02Surround)
@@ -482,14 +483,14 @@ class viscm_editor(object):
                   43.552546744036135, 4.7670857511283202,
                   -9.5059638942617539]
             if diverging:
-                xp = [-9, 4, 43, 59, 0, -20, -30, 20, 1]
+                xp = [-9, -15, 43, 30, 0, -20, -30, 20, 1]
 
         if yp is None:
             yp = [-25.664893617021221, -21.941489361702082,
                   38.874113475177353, 20.567375886524871,
                   32.047872340425585]
             if diverging:
-                yp = [32, 20, 38, -21, 0, 21, -38, -20, -5] 
+                yp = [-5, 20, 20, -21, 0, 21, -38, -20, -5] 
 
         fixed = None
         BezierModel = SingleBezierCurveModel
@@ -644,10 +645,13 @@ class BezierCMapModel(object):
         self.trigger.fire()
 
     def get_Jpapbp_at(self, at):
+        at = np.asarray(at)
         ap, bp = self.bezier_model.get_bezier_points_at(at)
         Jp = (self.max_Jp - self.min_Jp) * at + self.min_Jp
         if self.diverging:
             Jp = (self.max_Jp - self.min_Jp) * abs(2 * at - 1) + self.min_Jp
+            if len(Jp.shape) > 0:
+                Jp = gaussian_filter1d(Jp, 10)
         return Jp, ap, bp
 
     def get_Jpapbp(self, num=200):
@@ -721,7 +725,7 @@ class HighlightPointBuilder(object):
         self.canvas = self.ax.figure.canvas
         self._in_drag = False
 
-        self.marker_line_a = self.ax.axhline(highhlight_point_model_a.get_point(),
+        self.marker_line_a = self.ax.axhline(highlight_point_model_a.get_point(),
                                            linewidth=3, color="r")
         if self.highlight_point_model_b:
             self.marker_line_b = self.ax.axhline(highlight_point_model_b.get_point(),
