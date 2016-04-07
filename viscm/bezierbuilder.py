@@ -34,11 +34,10 @@ $ python bezier_builder.py
 """
 
 import numpy as np
-from scipy.ndimage.filters import gaussian_filter1d
 from math import factorial
 
 from matplotlib.lines import Line2D
-
+from PyQt4 import QtGui, QtCore
 from .minimvc import Trigger
 
 class ControlPointModel(object):
@@ -104,9 +103,11 @@ class ControlPointBuilder(object):
         self._index = None  # Active vertex
 
         self.control_point_model.trigger.add_callback(self._refresh)
+        self.mode = "move"
         self._refresh()
 
     def on_button_press(self, event):
+        modkey = event.guiEvent.modifiers()
         # Ignore clicks outside axes
         if event.inaxes != self.ax:
             return
@@ -114,14 +115,14 @@ class ControlPointBuilder(object):
         if res and event.key is None:
             # Grabbing a point to drag
             self._index = ind["ind"][0]
-        if res and event.key == "control":
+        if res and (event.key == "control" or modkey == QtCore.Qt.ControlModifier or self.mode == "remove"):
             # Control-click deletes
             self.control_point_model.remove_point(ind["ind"][0])
-        if event.key == "shift":
+        if (event.key == "shift" or modkey == QtCore.Qt.ShiftModifier or self.mode == "add"):
             # Adding a new point. Find the two closest points and insert it in
             # between them.
             total_squared_dists = []
-            xp, yp = self.bezier_model.get_control_points()
+            xp, yp, _ = self.control_point_model.get_control_points()
             for i in range(len(xp) - 1):
                 dist = (event.xdata - xp[i]) ** 2
                 dist += (event.ydata - yp[i]) ** 2
@@ -133,6 +134,7 @@ class ControlPointBuilder(object):
             self.control_point_model.add_point(best + 1,
                                                event.xdata,
                                                event.ydata)
+
 
     def on_button_release(self, event):
         if event.button != 1:
@@ -151,6 +153,8 @@ class ControlPointBuilder(object):
     def _refresh(self):
         xp, yp, _ = self.control_point_model.get_control_points()
         self.control_polygon.set_data(xp, yp)
+
+        self.canvas.draw()
 
 
 ################################################################
@@ -222,6 +226,7 @@ class TwoBezierCurveModel(object):
         self.bezier_curve = Line2D(x, y)
         self.trigger = self.control_point_model.trigger
         self.trigger.add_callback(self._refresh)
+    
 
     def get_bezier_points(self, num=200):
         return self.get_bezier_points_at(np.linspace(0, 1, num))
@@ -303,8 +308,8 @@ class BezierCurveView(object):
         self.canvas.draw()
 
 
-# We used to use scipy.special.binom and scipy.ndimage.filters.gaussian_filter1d
-# here, but reimplementing it ourself lets us avoid pulling in a dependency 
+# We used to use scipy.special.binom here,
+# but reimplementing it ourself lets us avoid pulling in a dependency 
 # scipy just for that one function.
 def binom(n, k):
     return factorial(n) * 1.0 / (factorial(k) * factorial(n - k))
