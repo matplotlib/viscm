@@ -468,9 +468,10 @@ def _viscm_editor_axes(fig):
 
 class viscm_editor(object):
     def __init__(self, figure=None, uniform_space="CAM02-UCS",
-                 min_Jp=15, max_Jp=95, xp=None, yp=None, diverging=False):
+                 min_Jp=15, max_Jp=95, xp=None, yp=None, cmtype="linear"):
         from .bezierbuilder import SingleBezierCurveModel, TwoBezierCurveModel, ControlPointBuilder, ControlPointModel
-        self.diverging = diverging
+        self.diverging, self.bent = False, False
+        self.cmtype = cmtype
         self._uniform_space = uniform_space
 
         self.figure = figure
@@ -480,27 +481,25 @@ class viscm_editor(object):
         self.max_Jp = max_Jp
 
         if xp is None:
-            xp = [-2.0591553836234482, 59.377014829142524,
+            xp = {"linear":[-2.0591553836234482, 59.377014829142524,
                   43.552546744036135, 4.7670857511283202,
-                  -9.5059638942617539]
-            if diverging:
-                xp = [-9, -15, 43, 30, 0, -20, -30, 20, 1]
+                  -9.5059638942617539],
+                  "diverging":[-9, -15, 43, 30, 0, -20, -30, 20, 1],
+                  "bent":[-9, -15, 43, 30, 0, -20, -30, 20, 1],
+                  }[cmtype]
 
         if yp is None:
-            yp = [-25.664893617021221, -21.941489361702082,
+            yp = {"linear":[-25.664893617021221, -21.941489361702082,
                   38.874113475177353, 20.567375886524871,
-                  32.047872340425585]
-            if diverging:
-                yp = [-5, 20, 20, -21, 0, 21, -38, -20, -5] 
+                  32.047872340425585],
+                  "diverging":[-5, 20, 20, -21, 0, 21, -38, -20, -5],
+                  "bent":[-5, 20, 20, -21, 0, 21, -38, -20, -5]
+                  }[cmtype]
 
-        fixed = None
-        BezierModel = SingleBezierCurveModel
-        startJp = 0.5
-        
-        if diverging: 
-            fixed = 4
-            BezierModel = TwoBezierCurveModel
-            startJp = 0.75
+        fixed, BezierModel, startJp = {"linear":(None, SingleBezierCurveModel, 0.5),
+                                       "diverging":(4, TwoBezierCurveModel, 0.75),
+                                       "bent":(4, TwoBezierCurveModel, 0.5)
+                                       }[cmtype]
         
         self.control_point_model = ControlPointModel(xp, yp, fixed=fixed)
 
@@ -512,13 +511,13 @@ class viscm_editor(object):
                                           self.min_Jp,
                                           self.max_Jp,
                                           uniform_space,
-                                          diverging=diverging)
+                                          cmtype=cmtype)
         
 
         self.highlight_point_model = HighlightPointModel(self.cmap_model, startJp)
         self.highlight_point_model1 = None
 
-        if diverging:
+        if cmtype == "diverging":
             self.highlight_point_model1 = HighlightPointModel(self.cmap_model, 1 - startJp)
 
         self.bezier_builder = ControlPointBuilder(axes['bezier'],
@@ -530,7 +529,7 @@ class viscm_editor(object):
         
         self.bezier_highlight_point_view = HighlightPoint2DView(axes['bezier'],
                                    self.highlight_point_model)
-        if diverging:
+        if cmtype == "diverging":
             self.bezier_highlight_point_view1 = HighlightPoint2DView(axes['bezier'],
                                        self.highlight_point_model1)
 
@@ -567,7 +566,7 @@ class viscm_editor(object):
             json.dump({"xp":xp,
                        "yp":yp,
                        "fixed":fixed,
-                       "diverging":self.diverging,
+                       "type":self.cmtype,
                        "min_Jp":self.cmap_model.min_Jp,
                        "max_Jp":self.cmap_model.max_Jp,
                        "r_values":[x[0] for x in rgb],
@@ -575,10 +574,13 @@ class viscm_editor(object):
                        "b_values":[x[2] for x in rgb],
                         },
                         f, indent=4)
+        print("Saved")
     def export_py(self, filepath):
         import textwrap
         template = textwrap.dedent('''
         from matplotlib.colors import ListedColormap
+
+        cm_type = "{type}"
 
         cm_data = {array_list}
         user_cm = ListedColormap(cm_data, name="user cm")
@@ -588,7 +590,7 @@ class viscm_editor(object):
                                          prefix='cm_data = ',
                                          separator=',')
         with open(filepath, 'w') as f:
-            f.write(template.format(**dict(array_list=array_list)))
+            f.write(template.format(**dict(array_list=array_list, type=self.cmtype)))
 
 
     def show_viscm(self):
@@ -609,11 +611,11 @@ class viscm_editor(object):
 
 
 class BezierCMapModel(object):
-    def __init__(self, bezier_model, min_Jp, max_Jp, uniform_space, diverging=False):
+    def __init__(self, bezier_model, min_Jp, max_Jp, uniform_space, cmtype="linear"):
         self.bezier_model = bezier_model
         self.min_Jp = min_Jp
         self.max_Jp = max_Jp
-        self.diverging = diverging
+        self.cmtype = cmtype
         self.trigger = Trigger()
         self.uniform_to_sRGB1 = cspace_converter(uniform_space, "sRGB1")
 
@@ -628,10 +630,11 @@ class BezierCMapModel(object):
         at = np.asarray(at)
         ap, bp = self.bezier_model.get_bezier_points_at(at)
         Jp = (self.max_Jp - self.min_Jp) * at + self.min_Jp
-        if self.diverging:
+        if self.cmtype == "diverging":
             Jp = (self.max_Jp - self.min_Jp) * abs(2 * at - 1) + self.min_Jp
             if len(Jp.shape) > 0:
                 Jp = gaussian_filter1d(Jp, 10, mode="nearest")
+        
         return Jp, ap, bp
 
     def get_Jpapbp(self, num=200):
@@ -879,9 +882,9 @@ def main(argv):
                         "(which turn out to have had a small bug in the "
                         "assumed sRGB viewing conditions) from their bezier "
                         "curves.")
-    parser.add_argument("--diverging",
-                        default=False, action="store_true",
-                        help="Editing diverging colormaps")
+    parser.add_argument("-t", "--type", type=str,
+                        default="linear", choices=["linear", "diverging", "bent"],
+                        help="Choose a colormap type")
     parser.add_argument("--save", metavar="FILE",
                         default=None,
                         help="Immediately save visualization to a file "
@@ -898,24 +901,16 @@ def main(argv):
 
     if args.colormap:
         if os.path.isfile(args.colormap):
-            # ns = {'__name__': '',
-            #       '__file__': os.path.basename(args.colormap),
-            #       }
-
             with open(args.colormap) as f:
                 data = json.loads(f.read())
                 cmap = list(zip(data['r_values'], data['g_values'], data['b_values']))
                 cmap = matplotlib.colors.ListedColormap(cmap, "user created cm")
                 params = {k:v for k,v in data.items()
                         if k in ["xp", "yp", "min_Jp", "max_Jp"]}
-                args.diverging = data["diverging"]
-                # params = ns.get('parameters', {})
-            # if "min_JK" in params:
-            #     params["min_Jp"] = params.pop("min_JK")
-            #     params["max_Jp"] = params.pop("max_JK")
-            # cmap = ns.get("test_cm", None)
+                args.type = data["type"]
         else:
             cmap = plt.get_cmap(args.colormap)
+            
 
     uniform_space = args.uniform_space
     if uniform_space == "buggy-CAM02-UCS":
@@ -939,7 +934,7 @@ def main(argv):
         # Hold a reference so it doesn't get GC'ed
         fig = plt.figure()
         figureCanvas = FigureCanvas(fig)
-        v = viscm_editor(figure=fig, uniform_space=uniform_space, diverging=args.diverging, **params)
+        v = viscm_editor(figure=fig, uniform_space=uniform_space, cmtype=args.type, **params)
         mainwindow = EditorWindow(figureCanvas, v, args.colormap)
     else:
         raise RuntimeError("can't happen")
@@ -1175,7 +1170,7 @@ class EditorWindow(QtGui.QMainWindow):
 
     def save(self):
         fileName = QtGui.QFileDialog.getSaveFileName(caption="Save file",
-                                                directory=self.cmapname + ",json",
+                                                directory=self.cmapname + ".json",
                                                 filter="JSON Files (*.json)")
         self.viscm_editor.save_colormap(fileName)
 
