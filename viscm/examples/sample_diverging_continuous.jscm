@@ -1,0 +1,43 @@
+{
+    "domain": "continuous",
+    "name": "sample_diverging_continuous",
+    "usage-hints": [
+        "red-green-colorblind-safe",
+        "greyscale-safe"
+    ],
+    "colorspace": "sRGB",
+    "extensions": {
+        "https://matplotlib.org/viscm": {
+            "cmtype": "diverging-continuous",
+            "fixed": 4,
+            "yp": [
+                -5,
+                20,
+                20,
+                -21,
+                0,
+                21,
+                -38,
+                -20,
+                -5
+            ],
+            "filter_k": 10,
+            "max_Jp": 95,
+            "min_Jp": 15,
+            "xp": [
+                -9,
+                -15,
+                43,
+                30,
+                0,
+                -20,
+                -30,
+                20,
+                1
+            ]
+        }
+    },
+    "colors": "1b22111d23111e23112024112224112325112525112726112826112a26112c27112d27112f27113128113228113428113629123729123929123b2a123c2a133e2a13402a14412b14432b15442b15462b16482b16492c174b2c174c2c184e2c194f2c19512c1a532d1b542d1c562d1d572d1e592d1e5a2d1f5c2d205d2d215f2d22602e23622e25632e26652e27662e28682e29692e2b6b2e2c6c2e2d6e2e2f6f2e30702e31722e33732e35742f36762f38772f3a782f3b792f3d7b2f3f7c2f417d30437e30457f304780314981314b81324d82335083345283345484355684365884385a84395c843a5e843c60843d62843e6384406584416684436883456983466a83486b83496c824b6d824c6e824e6f814f708151708152718054728055728057738058737f5a747f5b747f5c757f5e757e5f757e61767e62767e63767e64777e66777d67777d68777d69787d6b787d6c787d6d787d6e797d6f797d71797d72797d737a7d747a7e757a7e767a7e777b7e787b7e797b7e7a7c7f7b7c7f7c7c807d7c807e7d807f7d81807d81817d81837d81847d81857d81867d81877d81887e81897e818a7e818c7e818d7f818e7f808f808090808092817f93827f94827e95837e96847d98867d99877c9a887c9b8a7b9c8b7b9d8d7a9f8e7aa0907aa19279a29479a39579a49779a59979a69b79a79d79a89f79a9a179aaa379aaa579aba779aca97aadab7aaead7bafaf7bb0b17cb0b37cb1b57db2b77eb3b97eb4bb7fb4bd80b5bf81b6c182b7c383b7c684b8c885b9ca86b9cc88bace89bbd08abbd18cbcd38dbcd58fbdd790bed992bedb94bfdd95bfdf97c0e099c0e29bc1e49dc1e59fc2e7a1c2e8a3c3eaa5c3eba7c4eda9c4eeabc5efadc5f1afc6f2b2c6f3b4c7f4b6c7f5b8c8f6bbc8f7bdc9f8bfc9f9c1caf9c3cafac6cbfac8cbfbcaccfbccccfccecdfcd0cefcd3cefcd5cffcd7cffcd9d0fcdad1fcdcd2fcded3fbe0d3fbe1d4fbe3d5fae4d6fae5d7f9e6d8f9e7daf9e9dbf8e9dcf8eaddf7ebdef7ece0f7ede1f7ede2f7eee4f6eee5f6efe6f6f0e8f6f0e9f6f1eaf7f1ecf7f2edf7",
+    "license": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "content-type": "application/vnd.matplotlib.colormap-v1+json"
+}

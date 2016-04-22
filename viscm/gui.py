@@ -11,6 +11,7 @@ import os.path
 import json
 
 import numpy as np
+import scipy as sc
 import matplotlib
 
 matplotlib.rcParams['backend'] = "QT4AGG"
@@ -27,8 +28,7 @@ from scipy.ndimage.filters import gaussian_filter1d
 from colorspacious import (cspace_converter, cspace_convert,
                            CIECAM02Space, CIECAM02Surround)
 from .minimvc import Trigger
-
-from PyQt4 import QtGui, QtCore
+from matplotlib.backends.qt_compat import QtGui, QtCore
 from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
 
 
@@ -101,7 +101,6 @@ def _setup_Jpapbp_axis(ax):
     ax.set_xlim(*AP_LIM)
     ax.set_ylim(*BP_LIM)
     ax.set_zlim(*JP_LIM)
-
 
 # Adapt a matplotlib colormap to a linearly transformed version -- useful for
 # visualizing how colormaps look given color deficiency.
@@ -176,7 +175,8 @@ class viscm(object):
             cm = plt.get_cmap(cm)
         if name is None:
             name = cm.name
-
+        if figure == None:
+            figure = plt.figure()
         self._sRGB1_to_uniform = cspace_converter("sRGB1", uniform_space)
 
         self.figure = figure
@@ -468,24 +468,27 @@ def _viscm_editor_axes(fig):
 
 class viscm_editor(object):
     def __init__(self, figure=None, uniform_space="CAM02-UCS",
-                 min_Jp=15, max_Jp=95, xp=None, yp=None, cmtype="linear"):
+                 min_Jp=15, max_Jp=95, xp=None, yp=None, cmtype="linear", filter_k=10, fixed=-1, name="new cm"):
         from .bezierbuilder import SingleBezierCurveModel, TwoBezierCurveModel, ControlPointBuilder, ControlPointModel
-        self.diverging, self.bent = False, False
+        if figure is None:
+            figure = plt.figure()
         self.cmtype = cmtype
         self._uniform_space = uniform_space
-
+        self.name = name
         self.figure = figure
         axes = _viscm_editor_axes(self.figure)
-
         self.min_Jp = min_Jp
         self.max_Jp = max_Jp
-
+        self.filter_k = filter_k
+        self.fixed = fixed
+        if self.cmtype in ["diverging", "diverging-continuous"] and xp is None:
+            self.fixed = 4;
         if xp is None:
             xp = {"linear":[-2.0591553836234482, 59.377014829142524,
                   43.552546744036135, 4.7670857511283202,
                   -9.5059638942617539],
                   "diverging":[-9, -15, 43, 30, 0, -20, -30, 20, 1],
-                  "bent":[-9, -15, 43, 30, 0, -20, -30, 20, 1],
+                  "diverging-continuous":[-9, -15, 43, 30, 0, -20, -30, 20, 1],
                   }[cmtype]
 
         if yp is None:
@@ -493,32 +496,27 @@ class viscm_editor(object):
                   38.874113475177353, 20.567375886524871,
                   32.047872340425585],
                   "diverging":[-5, 20, 20, -21, 0, 21, -38, -20, -5],
-                  "bent":[-5, 20, 20, -21, 0, 21, -38, -20, -5]
+                  "diverging-continuous":[-5, 20, 20, -21, 0, 21, -38, -20, -5]
                   }[cmtype]
 
-        fixed, BezierModel, startJp = {"linear":(None, SingleBezierCurveModel, 0.5),
-                                       "diverging":(4, TwoBezierCurveModel, 0.75),
-                                       "bent":(4, TwoBezierCurveModel, 0.5)
+        BezierModel, startJp = {"linear":(SingleBezierCurveModel, 0.5),
+                                       "diverging":(TwoBezierCurveModel, 0.75),
+                                       "diverging-continuous":(TwoBezierCurveModel, 0.5),
                                        }[cmtype]
         
-        self.control_point_model = ControlPointModel(xp, yp, fixed=fixed)
-
-        #self.bezier_model = BezierModel(xp, yp)
+        self.control_point_model = ControlPointModel(xp, yp, fixed=self.fixed)
         self.bezier_model = BezierModel(self.control_point_model)
         axes['bezier'].add_line(self.bezier_model.bezier_curve)
-
         self.cmap_model = BezierCMapModel(self.bezier_model,
                                           self.min_Jp,
                                           self.max_Jp,
                                           uniform_space,
-                                          cmtype=cmtype)
+                                          cmtype=cmtype,
+                                          filter_k=self.filter_k)
         
 
         self.highlight_point_model = HighlightPointModel(self.cmap_model, startJp)
         self.highlight_point_model1 = None
-
-        if cmtype == "diverging":
-            self.highlight_point_model1 = HighlightPointModel(self.cmap_model, 1 - startJp)
 
         self.bezier_builder = ControlPointBuilder(axes['bezier'],
                                                   self.control_point_model)
@@ -530,6 +528,7 @@ class viscm_editor(object):
         self.bezier_highlight_point_view = HighlightPoint2DView(axes['bezier'],
                                    self.highlight_point_model)
         if cmtype == "diverging":
+            self.highlight_point_model1 = HighlightPointModel(self.cmap_model, 1 - startJp)
             self.bezier_highlight_point_view1 = HighlightPoint2DView(axes['bezier'],
                                        self.highlight_point_model1)
 
@@ -542,13 +541,7 @@ class viscm_editor(object):
             axes['cm'],
             self.highlight_point_model,
             self.highlight_point_model1)
-
         self.axes = axes
-
-        # print("Click sliders at bottom to change min/max lightness")
-        # print("Click on colorbar to adjust gamut view")
-        # print("Click-drag to move control points, ")
-        # print("  shift-click to add, control-click to delete")
 
     def plot_3d_gamut(self):
         fig, ax = plt.subplots(subplot_kw=dict(projection='3d'))
@@ -563,15 +556,30 @@ class viscm_editor(object):
         with open(filepath, 'w') as f:
             xp, yp, fixed = self.control_point_model.get_control_points()
             rgb, _ = self.cmap_model.get_sRGB(num=256)
-            json.dump({"xp":xp,
-                       "yp":yp,
-                       "fixed":fixed,
-                       "type":self.cmtype,
-                       "min_Jp":self.cmap_model.min_Jp,
-                       "max_Jp":self.cmap_model.max_Jp,
-                       "r_values":[x[0] for x in rgb],
-                       "g_values":[x[1] for x in rgb],
-                       "b_values":[x[2] for x in rgb],
+            rgb = [[np.rint(i * 256) for i in s] for s in rgb]
+            rgbstr = "".join(["".join(['%02x'%((i+2**24)%2**24) for i in x]) for x in rgb])
+            usage_hints = ["red-green-colorblind-safe", "greyscale-safe"]
+            if self.cmtype == "diverging":
+                usage_hints.append("diverging")
+            elif self.cmtype == "linear":
+                usage_hints.append("sequential")
+            xp, yp, fixed = self.control_point_model.get_control_points()
+            extensions = {"min_Jp" : self.min_Jp,
+                          "max_Jp" : self.max_Jp,
+                          "xp" : xp,
+                          "yp" : yp,
+                          "fixed" : fixed,
+                          "filter_k" : self.filter_k,
+                          "cmtype" : self.cmtype
+            }
+            json.dump({"content-type": "application/vnd.matplotlib.colormap-v1+json",
+                       "name": self.name,
+                       "license":"http://creativecommons.org/publicdomain/zero/1.0/",
+                       "usage-hints": usage_hints,
+                       "colorspace" : "sRGB",
+                       "domain" : "continuous",
+                       "colors" : rgbstr,
+                       "extensions" : {"https://matplotlib.org/viscm" : extensions}
                         },
                         f, indent=4)
         print("Saved")
@@ -600,25 +608,26 @@ class viscm_editor(object):
         return cm
 
     def _jp_update(self, minval, maxval):
-        jp_min = minval
-        jp_max = maxval
+        if minval >= 0 and minval <= 100 and maxval >= 0 and maxval <= 100:
+            self.min_Jp = minval
+            self.max_Jp = maxval
+            self.cmap_model.set_Jp_minmax(self.min_Jp, self.max_Jp)
 
-        # smallest, largest = min(jp_min, jp_max), max(jp_min, jp_max)
-
-        self.min_Jp = jp_min
-        self.max_Jp = jp_max
-        self.cmap_model.set_Jp_minmax(self.min_Jp, self.max_Jp)
+    def _filter_k_update(self, filter_k):
+        if filter_k >= 0:
+            self.filter_k = filter_k
+            self.cmap_model.set_filter_k(filter_k)
 
 
 class BezierCMapModel(object):
-    def __init__(self, bezier_model, min_Jp, max_Jp, uniform_space, cmtype="linear"):
+    def __init__(self, bezier_model, min_Jp, max_Jp, uniform_space, filter_k=-1, cmtype="linear"):
         self.bezier_model = bezier_model
         self.min_Jp = min_Jp
         self.max_Jp = max_Jp
+        self.filter_k = filter_k
         self.cmtype = cmtype
         self.trigger = Trigger()
         self.uniform_to_sRGB1 = cspace_converter(uniform_space, "sRGB1")
-
         self.bezier_model.trigger.add_callback(self.trigger.fire)
 
     def set_Jp_minmax(self, min_Jp, max_Jp):
@@ -626,19 +635,24 @@ class BezierCMapModel(object):
         self.max_Jp = max_Jp
         self.trigger.fire()
 
-    def get_Jpapbp_at(self, at):
-        at = np.asarray(at)
-        ap, bp = self.bezier_model.get_bezier_points_at(at)
-        Jp = (self.max_Jp - self.min_Jp) * at + self.min_Jp
-        if self.cmtype == "diverging":
-            Jp = (self.max_Jp - self.min_Jp) * abs(2 * at - 1) + self.min_Jp
-            if len(Jp.shape) > 0:
-                Jp = gaussian_filter1d(Jp, 10, mode="nearest")
-        
+    def set_filter_k(self, filter_k):
+        self.filter_k = filter_k
+        self.trigger.fire()
+
+    def get_Jpapbp_at_point(self, point):
+        from scipy.interpolate import interp1d
+        Jp, ap, bp = self.get_Jpapbp()
+        Jp, ap, bp = interp1d(np.linspace(0, 1, Jp.size), np.array([Jp, ap, bp]))(point)
         return Jp, ap, bp
 
     def get_Jpapbp(self, num=200):
-        return self.get_Jpapbp_at(np.linspace(0, 1, num))
+        ap, bp = self.bezier_model.get_bezier_points_at(np.linspace(0, 1, num))
+        at = np.linspace(0, 1, num)
+        if self.cmtype == "diverging":
+            from scipy.special import erf
+            at = 2 * np.cumsum(erf(self.filter_k * (at - 0.5))) / num + 1
+        Jp = (self.max_Jp - self.min_Jp) * at + self.min_Jp
+        return Jp, ap, bp
 
     def get_sRGB(self, num=200):
         # Return sRGB and out-of-gamut mask
@@ -696,7 +710,7 @@ class HighlightPointModel(object):
         self.trigger.fire()
 
     def get_Jpapbp(self):
-        return self._cmap_model.get_Jpapbp_at(self._point)
+        return self._cmap_model.get_Jpapbp_at_point(self._point)
 
 
 class HighlightPointBuilder(object):
@@ -811,8 +825,6 @@ class WireframeView(object):
 
         Jp, ap, bp = self.cmap_model.get_Jpapbp()
         self.line = self.ax.plot([0, 10], [0, 10])[0]
-        # self.line = self.ax.plot(Jp, ap, bp)[0]
-
         Jp, ap, bp = self.highlight_point_model.get_Jpapbp()
         self.marker = self.ax.plot([Jp], [ap], [bp], "y.", mew=3)[0]
 
@@ -826,8 +838,6 @@ class WireframeView(object):
 
         _setup_Jpapbp_axis(self.ax)
 
-        # self.cmap_model.trigger.add_callback(self._refresh_line)
-        # self.highlight_point_model.trigger.add_callback(self._refresh_point)
         self._refresh_line()
         self._refresh_point()
 
@@ -843,6 +853,23 @@ class WireframeView(object):
         self.marker.set_3d_properties(zs=[Jp])
         self.ax.figure.canvas.draw()
 
+def loadfile(path):
+    is_native = False
+    params = None
+    cmtype = None
+    with open(path) as f:
+        data = json.loads(f.read())
+        name = data["name"]
+        cmap = data["colors"]
+        cmap = [[int(c[i:i + 2], 16) / 256 for i in range(0, 6, 2)] for c in [cmap[i:i + 6] for i in range(0, len(cmap), 6)]]
+        cmap = matplotlib.colors.ListedColormap(cmap, "user created cm")
+        if "extensions" in data and "https://matplotlib.org/viscm" in data["extensions"]:
+            is_native = True
+            params = {k:v for k,v in data["extensions"]["https://matplotlib.org/viscm"].items()
+                    if k in ["xp", "yp", "min_Jp", "max_Jp", "fixed", "filter_k"]}
+            params["name"] = name
+            cmtype = data["extensions"]["https://matplotlib.org/viscm"]["cmtype"]
+    return params, cmtype, data, name, cmap, is_native,
 
 def main(argv):
     import argparse
@@ -883,7 +910,7 @@ def main(argv):
                         "assumed sRGB viewing conditions) from their bezier "
                         "curves.")
     parser.add_argument("-t", "--type", type=str,
-                        default="linear", choices=["linear", "diverging", "bent"],
+                        default="linear", choices=["linear", "diverging", "diverging-continuous"],
                         help="Choose a colormap type")
     parser.add_argument("--save", metavar="FILE",
                         default=None,
@@ -896,21 +923,28 @@ def main(argv):
 
     params = {}
     cmap = None
-
+    is_native = False
     app = QtGui.QApplication([])
 
     if args.colormap:
         if os.path.isfile(args.colormap):
-            with open(args.colormap) as f:
-                data = json.loads(f.read())
-                cmap = list(zip(data['r_values'], data['g_values'], data['b_values']))
-                cmap = matplotlib.colors.ListedColormap(cmap, "user created cm")
-                params = {k:v for k,v in data.items()
-                        if k in ["xp", "yp", "min_Jp", "max_Jp"]}
-                args.type = data["type"]
+            # with open(args.colormap) as f:
+            #     data = json.loads(f.read())
+            #     name = data["name"]
+            #     cmap = data["colors"]
+            #     cmap = [[int(c[i:i + 2], 16) / 256 for i in range(0, 6, 2)] for c in [cmap[i:i + 6] for i in range(0, len(cmap), 6)]]
+            #     cmap = matplotlib.colors.ListedColormap(cmap, "user created cm")
+            #     if "https://matplotlib.org/viscm" in data["extensions"]:
+            #         is_native = True
+            #         params = {k:v for k,v in data["extensions"]["https://matplotlib.org/viscm"].items()
+            #                 if k in ["xp", "yp", "min_Jp", "max_Jp", "fixed", "filter_k"]}
+            #         params["name"] = name
+            #         args.type = data["extensions"]["https://matplotlib.org/viscm"]["cmtype"]
+            params, args.type, data, name, cmap, is_native, = loadfile(args.colormap)
+
+
         else:
             cmap = plt.get_cmap(args.colormap)
-            
 
     uniform_space = args.uniform_space
     if uniform_space == "buggy-CAM02-UCS":
@@ -919,11 +953,15 @@ def main(argv):
     if args.action in ("view", "show"):
         if cmap is None:
             sys.exit("Please specify a colormap")
-
         fig = plt.figure()
         figureCanvas = FigureCanvas(fig)
-        v = viscm(cmap, figure=fig, uniform_space=uniform_space)
-        mainwindow = ViewerWindow(figureCanvas, v, args.colormap)
+        if is_native:
+            v = viscm_editor(figure=fig, uniform_space=uniform_space, cmtype=args.type, **params)
+            mainwindow = EditorWindow(figureCanvas, v)
+            mainwindow.loadviewer()
+        else:
+            v = viscm(cmap, name=name, figure=fig, uniform_space=uniform_space)
+            mainwindow = ViewerWindow(figureCanvas, v, args.colormap)
 
         if args.save is not None:
             v.fig.set_size_inches(20, 12)
@@ -935,7 +973,7 @@ def main(argv):
         fig = plt.figure()
         figureCanvas = FigureCanvas(fig)
         v = viscm_editor(figure=fig, uniform_space=uniform_space, cmtype=args.type, **params)
-        mainwindow = EditorWindow(figureCanvas, v, args.colormap)
+        mainwindow = EditorWindow(figureCanvas, v)
     else:
         raise RuntimeError("can't happen")
 
@@ -951,8 +989,6 @@ def main(argv):
 
     mainwindow.show()
     app.exec_()
-
-    # plt.show()
 
 
 class ViewerWindow(QtGui.QMainWindow):
@@ -1012,13 +1048,10 @@ class ViewerWindow(QtGui.QMainWindow):
 
 
 class EditorWindow(QtGui.QMainWindow):
-    def __init__(self, figurecanvas, viscm_editor, cmapname, parent=None):
+    def __init__(self, figurecanvas, viscm_editor, parent=None):
         QtGui.QMainWindow.__init__(self, parent)
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
         self.viscm_editor = viscm_editor
-        if cmapname == None:
-            cmapname = "new_colormap"
-        self.cmapname = cmapname
 
         file_menu = QtGui.QMenu('&File', self)
         file_menu.addAction('&Save', self.save,
@@ -1039,12 +1072,11 @@ class EditorWindow(QtGui.QMainWindow):
         self.menuBar().addMenu(file_menu)
         self.menuBar().addMenu(options_menu)
         self.menuBar().addMenu(help_menu)
-        self.setWindowTitle("VISCM Editing : " + cmapname)
+        self.setWindowTitle("VISCM Editing : " + viscm_editor.name)
 
         self.main_widget = QtGui.QWidget(self)
 
         self.max_slider = QtGui.QSlider(QtCore.Qt.Horizontal)
-
         self.max_slider.setMinimum(0)
         self.max_slider.setMaximum(100)
         self.max_slider.setValue(viscm_editor.max_Jp)
@@ -1055,7 +1087,6 @@ class EditorWindow(QtGui.QMainWindow):
         self.max_slider_num.setFixedWidth(30)
 
         self.min_slider = QtGui.QSlider(QtCore.Qt.Horizontal)
-
         self.min_slider.setMinimum(0)
         self.min_slider.setMaximum(100)
         self.min_slider.setValue(viscm_editor.min_Jp)
@@ -1074,10 +1105,28 @@ class EditorWindow(QtGui.QMainWindow):
         min_slider_layout.addWidget(self.min_slider)
         min_slider_layout.addWidget(self.min_slider_num)
 
+
+
+        figure_layout = QtGui.QHBoxLayout()
+        figure_layout.addWidget(figurecanvas)
+        if viscm_editor.cmtype == "diverging":
+            self.smoothness_slider = QtGui.QSlider(QtCore.Qt.Vertical)
+            self.smoothness_slider.setMinimum(0)
+            self.smoothness_slider.setMaximum(100)
+            self.smoothness_slider.setValue(viscm_editor.filter_k * 5)
+            self.smoothness_slider.setTickPosition(QtGui.QSlider.TicksBelow)
+            self.smoothness_slider.setTickInterval(100)
+            self.smoothness_slider.valueChanged.connect(self.edit_smoothness)
+            figure_layout.addWidget(self.smoothness_slider)
+
+
+
+
         mainlayout = QtGui.QVBoxLayout(self.main_widget)
-        mainlayout.addWidget(figurecanvas)
+        mainlayout.addLayout(figure_layout)
         mainlayout.addLayout(max_slider_layout)
         mainlayout.addLayout(min_slider_layout)
+
 
         saveAction = QtGui.QAction(QtGui.QIcon('viscm/icons/save.png'),
                                         'Save', self)
@@ -1101,6 +1150,10 @@ class EditorWindow(QtGui.QMainWindow):
         self.swapAction = QtGui.QAction(QtGui.QIcon("viscm/icons/swap.png"),
                                         "Swap Max/Min brightness", self)
         self.swapAction.triggered.connect(self.swapjp)
+        renameAction = QtGui.QAction(
+                                        "Rename your colormap", self)
+        renameAction.triggered.connect(self.rename)
+
 
         self.toolbar = self.addToolBar('Tools')
         self.toolbar.addAction(saveAction)
@@ -1108,6 +1161,7 @@ class EditorWindow(QtGui.QMainWindow):
         self.toolbar.addAction(self.addAction)
         self.toolbar.addAction(self.removeAction)
         self.toolbar.addAction(self.swapAction)
+        self.toolbar.addAction(renameAction)
 
         self.moveAction.setChecked(True)
 
@@ -1115,6 +1169,15 @@ class EditorWindow(QtGui.QMainWindow):
         figurecanvas.setFocus()
         figurecanvas.setFocusPolicy(QtCore.Qt.StrongFocus)
         self.setCentralWidget(self.main_widget)
+
+    def rename(self):
+        name, ok = QtGui.QInputDialog.getText(self, "Rename your colormap", "Enter a name")
+        self.viscm_editor.name = name
+        self.setWindowTitle("VISCM Editing : " + self.viscm_editor.name)
+
+    def edit_smoothness(self):
+        num = self.smoothness_slider.value() / 5;
+        self.viscm_editor._filter_k_update(num)
     def swapjp(self):
         jp1, jp2 = self.min_slider.value(), self.max_slider.value()
         self.min_slider.setValue(jp2)
@@ -1144,7 +1207,7 @@ class EditorWindow(QtGui.QMainWindow):
         self.viscm_editor.bezier_builder.mode = "remove"
     def export(self):
         fileName = QtGui.QFileDialog.getSaveFileName(caption="Export file",
-                                                directory=self.cmapname + ".py",
+                                                directory=self.viscm_editor.name + ".py",
                                                 filter=".py (*.py)")
         self.viscm_editor.export_py(fileName)
 
@@ -1153,8 +1216,8 @@ class EditorWindow(QtGui.QMainWindow):
         figurecanvas = FigureCanvas(gamut_figure)
 
         FigureCanvas.setSizePolicy(figurecanvas,
-                               QtGui.QSizePolicy.Expanding,
-                               QtGui.QSizePolicy.Expanding)
+                                   QtGui.QSizePolicy.Expanding,
+                                   QtGui.QSizePolicy.Expanding)
         FigureCanvas.updateGeometry(figurecanvas)
 
         gamut_window = GamutWindow(figurecanvas, gamut_figure, parent=self)
@@ -1170,22 +1233,22 @@ class EditorWindow(QtGui.QMainWindow):
 
     def save(self):
         fileName = QtGui.QFileDialog.getSaveFileName(caption="Save file",
-                                                directory=self.cmapname + ".json",
-                                                filter="JSON Files (*.json)")
+                                                     directory=self.viscm_editor.name + ".jscm",
+                                                     filter="JSCM Files (*.jscm)")
         self.viscm_editor.save_colormap(fileName)
 
     def loadviewer(self):
         newfig = plt.figure()
         newcanvas = FigureCanvas(newfig)
         cm = self.viscm_editor.show_viscm()
-        v = viscm(cm, name="test_cm", figure=newfig)
+        v = viscm(cm, name=self.viscm_editor.name, figure=newfig)
 
         FigureCanvas.setSizePolicy(newcanvas,
-                                    QtGui.QSizePolicy.Expanding,
-                                    QtGui.QSizePolicy.Expanding)
+                                   QtGui.QSizePolicy.Expanding,
+                                   QtGui.QSizePolicy.Expanding)
         FigureCanvas.updateGeometry(newcanvas)
 
-        newwindow = ViewerWindow(newcanvas, v, "test_cm", parent=self)
+        newwindow = ViewerWindow(newcanvas, v, self.viscm_editor.name, parent=self)
         newwindow.resize(800, 600)
 
         newwindow.show()
@@ -1226,8 +1289,8 @@ class GamutWindow(QtGui.QMainWindow):
 
     def save(self):
         fileName = QtGui.QFileDialog.getSaveFileName(caption="Save file",
-                                directory="3d_gamut.png",
-                                filter="Image Files (*.png *.jpg *.bmp)")
+                                                     directory="3d_gamut.png",
+                                                     filter="Image Files (*.png *.jpg *.bmp)")
         self.figure.savefig(fileName)
 
     def fileQuit(self):
