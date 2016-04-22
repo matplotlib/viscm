@@ -37,7 +37,7 @@ import numpy as np
 from math import factorial
 
 from matplotlib.lines import Line2D
-from PyQt4 import QtGui, QtCore
+from matplotlib.backends.qt_compat import QtGui, QtCore
 from .minimvc import Trigger
 
 class ControlPointModel(object):
@@ -62,6 +62,7 @@ class ControlPointModel(object):
 
     def remove_point(self, i):
         if i == self._fixed:
+
             return
         del self._xp[i]
         del self._yp[i]
@@ -108,17 +109,18 @@ class ControlPointBuilder(object):
 
     def on_button_press(self, event):
         modkey = event.guiEvent.modifiers()
-        # Ignore clicks outside axes
+        print(self.mode)
+        # Ignore clicks outside axes 
         if event.inaxes != self.ax:
             return
         res, ind = self.control_polygon.contains(event)
-        if res and event.key is None:
-            # Grabbing a point to drag
+        if res and modkey == QtCore.Qt.NoModifier:
             self._index = ind["ind"][0]
-        if res and (event.key == "control" or modkey == QtCore.Qt.ControlModifier or self.mode == "remove"):
+        if res and (modkey == QtCore.Qt.ControlModifier or self.mode == "remove"):
             # Control-click deletes
             self.control_point_model.remove_point(ind["ind"][0])
-        if (event.key == "shift" or modkey == QtCore.Qt.ShiftModifier or self.mode == "add"):
+        if (modkey == QtCore.Qt.ShiftModifier or self.mode == "add"):
+
             # Adding a new point. Find the two closest points and insert it in
             # between them.
             total_squared_dists = []
