@@ -5,13 +5,12 @@
 
 # Simple script using CIECAM02 and CAM02-UCS to visualize properties of a
 # matplotlib colormap
-
+from __future__ import division, print_function, absolute_import
 import sys
 import os.path
 import json
 
 import numpy as np
-import scipy as sc
 import matplotlib
 
 matplotlib.rcParams['backend'] = "QT4AGG"
@@ -19,11 +18,10 @@ matplotlib.rcParams['backend'] = "QT4AGG"
 import matplotlib.pyplot as plt
 import mpl_toolkits.mplot3d
 from matplotlib.gridspec import GridSpec
-# from matplotlib.widgets import Button, Slider
 import matplotlib.colors
 from matplotlib.colors import LinearSegmentedColormap
 
-from scipy.ndimage.filters import gaussian_filter1d
+from scipy.interpolate import UnivariateSpline
 
 from colorspacious import (cspace_converter, cspace_convert,
                            CIECAM02Space, CIECAM02Surround)
@@ -128,7 +126,6 @@ class TransformedCMap(matplotlib.colors.Colormap):
     def is_gray(self):
         return False
 
-
 def _vis_axes(fig):
     grid = GridSpec(10, 4,
                     left=0.02,
@@ -213,17 +210,24 @@ class viscm(object):
             return max(np.max(values) * 1.1, 0)
 
         ax = axes['deltas']
-        local_deltas = N * np.sqrt(
+        local_deltas = np.sqrt(
             np.sum((Jpapbp[:-1, :] - Jpapbp[1:, :]) ** 2, axis=-1))
-        # print("perceptual delta peak-to-peak: %0.2f" % (np.ptp(local_deltas),))
-        ax.plot(x[1:], local_deltas)
+        
+
+        travelled = np.concatenate([[0], np.cumsum(local_deltas)])
+        travelled_spline = UnivariateSpline(x, travelled, s=N * 0.01)
+        deriv_spline = travelled_spline.derivative()
+        first_derivs = deriv_spline(x)
+
+
+        ax.plot(x, first_derivs)
         arclength = np.sum(local_deltas) / N
         rmse = np.std(local_deltas)
         title(ax, "Perceptual deltas")
         label(ax,
               "Length: %0.1f\nRMS deviation from flat: %0.1f (%0.1f%%)"
               % (arclength, rmse, 100 * rmse / arclength))
-        ax.set_ylim(-delta_ymax(-local_deltas), delta_ymax(local_deltas))
+        ax.set_ylim(-delta_ymax(-first_derivs), delta_ymax(first_derivs))
         ax.get_xaxis().set_visible(False)
 
         ax = axes['cmap-greyscale']
@@ -234,8 +238,14 @@ class viscm(object):
 
         ax = axes['lightness-deltas']
         ax.axhline(0, linestyle="--", color="grey")
-        lightness_deltas = N * np.diff(Jpapbp[:, 0])
-        ax.plot(x[1:], lightness_deltas)
+        lightness_deltas = np.diff(Jpapbp[:, 0])
+
+        travelled = np.concatenate([[0], np.cumsum(lightness_deltas)])
+        travelled_spline = UnivariateSpline(x, travelled, s=N * 0.01)
+        deriv_spline = travelled_spline.derivative()
+        first_derivs = deriv_spline(x)
+
+        ax.plot(x, first_derivs)
         title(ax,
               "Perceptual lightness deltas")
         lightness_arclength = np.sum(np.abs(lightness_deltas)) / N
@@ -245,9 +255,9 @@ class viscm(object):
               % (lightness_arclength,
                  lightness_rmse,
                  100 * lightness_rmse / np.mean(lightness_deltas)))
-        # ax.set_ylim(0, ax.get_ylim()[1])
-        ax.set_ylim(-delta_ymax(-lightness_deltas),
-                    delta_ymax(lightness_deltas))
+
+        ax.set_ylim(-delta_ymax(-first_derivs),
+                    delta_ymax(first_derivs))
         ax.get_xaxis().set_visible(False)
 
         # ax = axes['lightness']
@@ -468,11 +478,12 @@ def _viscm_editor_axes(fig):
 
 class viscm_editor(object):
     def __init__(self, figure=None, uniform_space="CAM02-UCS",
-                 min_Jp=15, max_Jp=95, xp=None, yp=None, cmtype="linear", filter_k=10, fixed=-1, name="new cm"):
+                 min_Jp=15, max_Jp=95, xp=None, yp=None, cmtype="linear", filter_k=10, fixed=-1, name="new cm", method="CatmulClark"):
         from .bezierbuilder import SingleBezierCurveModel, TwoBezierCurveModel, ControlPointBuilder, ControlPointModel
         if figure is None:
             figure = plt.figure()
         self.cmtype = cmtype
+        self.method = method
         self._uniform_space = uniform_space
         self.name = name
         self.figure = figure
@@ -483,21 +494,31 @@ class viscm_editor(object):
         self.fixed = fixed
         if self.cmtype in ["diverging", "diverging-continuous"] and xp is None:
             self.fixed = 4;
-        if xp is None:
-            xp = {"linear":[-2.0591553836234482, 59.377014829142524,
-                  43.552546744036135, 4.7670857511283202,
-                  -9.5059638942617539],
-                  "diverging":[-9, -15, 43, 30, 0, -20, -30, 20, 1],
-                  "diverging-continuous":[-9, -15, 43, 30, 0, -20, -30, 20, 1],
-                  }[cmtype]
-
-        if yp is None:
-            yp = {"linear":[-25.664893617021221, -21.941489361702082,
-                  38.874113475177353, 20.567375886524871,
-                  32.047872340425585],
-                  "diverging":[-5, 20, 20, -21, 0, 21, -38, -20, -5],
-                  "diverging-continuous":[-5, 20, 20, -21, 0, 21, -38, -20, -5]
-                  }[cmtype]
+        if xp is None or yp is None:
+            if method == "Bezier":
+                xp = {"linear":[-2.0591553836234482, 59.377014829142524,
+                      43.552546744036135, 4.7670857511283202,
+                      -9.5059638942617539],
+                      "diverging":[-9, -15, 43, 30, 0, -20, -30, 20, 1],
+                      "diverging-continuous":[-9, -15, 43, 30, 0, -20, -30, 20, 1],
+                      }[cmtype]
+                yp = {"linear":[-25.664893617021221, -21.941489361702082,
+                      38.874113475177353, 20.567375886524871,
+                      32.047872340425585],
+                      "diverging":[-5, 20, 20, -21, 0, 21, -38, -20, -5],
+                      "diverging-continuous":[-5, 20, 20, -21, 0, 21, -38, -20, -5]
+                      }[cmtype]
+            if method == "CatmulClark":
+                xp = {"linear":[-2, 20,23, 5, -9],
+                      "diverging":[-9, -15, -10, 0, 0, 5, 10, 15, 2],
+                      "diverging-continuous":[-9, -5, -1, 0, 0, 5, 10, 15, 2],
+                      }[cmtype]
+                yp = {"linear":[-25, -21, 18, 10, 12],
+                      "diverging":[-5, -8, -20, -10, 0, 2, 8, 15, 5],
+                      "diverging-continuous":[-5, -8, -20, -10, 0, 2, 8, 15, 5]
+                      }[cmtype]
+        xy_lim = {"Bezier" : (-100, 100),
+                  "CatmulClark" : (-50, 50)}[self.method]
 
         BezierModel, startJp = {"linear":(SingleBezierCurveModel, 0.5),
                                        "diverging":(TwoBezierCurveModel, 0.75),
@@ -505,13 +526,13 @@ class viscm_editor(object):
                                        }[cmtype]
         
         self.control_point_model = ControlPointModel(xp, yp, fixed=self.fixed)
-        self.bezier_model = BezierModel(self.control_point_model)
+        self.bezier_model = BezierModel(self.control_point_model, self.method)
         axes['bezier'].add_line(self.bezier_model.bezier_curve)
         self.cmap_model = BezierCMapModel(self.bezier_model,
                                           self.min_Jp,
                                           self.max_Jp,
                                           uniform_space,
-                                          cmtype=cmtype,
+                                          cmtype=cmtype,    
                                           filter_k=self.filter_k)
         
 
@@ -523,7 +544,8 @@ class viscm_editor(object):
 
         self.bezier_gamut_viewer = GamutViewer2D(axes['bezier'],
                                                  self.highlight_point_model,
-                                                 uniform_space)
+                                                 uniform_space,
+                                                 )
         
         self.bezier_highlight_point_view = HighlightPoint2DView(axes['bezier'],
                                    self.highlight_point_model)
@@ -533,8 +555,8 @@ class viscm_editor(object):
                                        self.highlight_point_model1)
 
         # draw_pure_hue_angles(axes['bezier'])
-        axes['bezier'].set_xlim(-100, 100)
-        axes['bezier'].set_ylim(-100, 100)
+        axes['bezier'].set_xlim(*xy_lim)
+        axes['bezier'].set_ylim(*xy_lim)
 
         self.cmap_view = CMapView(axes['cm'], self.cmap_model)
         self.cmap_highlighter = HighlightPointBuilder(
@@ -556,8 +578,10 @@ class viscm_editor(object):
         with open(filepath, 'w') as f:
             xp, yp, fixed = self.control_point_model.get_control_points()
             rgb, _ = self.cmap_model.get_sRGB(num=256)
-            rgb = [[np.rint(i * 256) for i in s] for s in rgb]
-            rgbstr = "".join(["".join(['%02x'%((i+2**24)%2**24) for i in x]) for x in rgb])
+            hex_blob = ""
+            for color in rgb:
+                for component in color:
+                    hex_blob += "%02x" % (int(round(component * 255)))
             usage_hints = ["red-green-colorblind-safe", "greyscale-safe"]
             if self.cmtype == "diverging":
                 usage_hints.append("diverging")
@@ -570,7 +594,9 @@ class viscm_editor(object):
                           "yp" : yp,
                           "fixed" : fixed,
                           "filter_k" : self.filter_k,
-                          "cmtype" : self.cmtype
+                          "cmtype" : self.cmtype,
+                          "uniform_colorspace" : self._uniform_space,
+                          "spline_method" : self.method
             }
             json.dump({"content-type": "application/vnd.matplotlib.colormap-v1+json",
                        "name": self.name,
@@ -578,7 +604,7 @@ class viscm_editor(object):
                        "usage-hints": usage_hints,
                        "colorspace" : "sRGB",
                        "domain" : "continuous",
-                       "colors" : rgbstr,
+                       "colors" : hex_blob,
                        "extensions" : {"https://matplotlib.org/viscm" : extensions}
                         },
                         f, indent=4)
@@ -591,14 +617,14 @@ class viscm_editor(object):
         cm_type = "{type}"
 
         cm_data = {array_list}
-        user_cm = ListedColormap(cm_data, name="user cm")
+        test_cm = ListedColormap(cm_data, name="{name}")
         ''')
         rgb, _ = self.cmap_model.get_sRGB(num=256)
         array_list = np.array2string(rgb, max_line_width=78,
                                          prefix='cm_data = ',
                                          separator=',')
         with open(filepath, 'w') as f:
-            f.write(template.format(**dict(array_list=array_list, type=self.cmtype)))
+            f.write(template.format(**dict(array_list=array_list, type=self.cmtype, name=self.name)))
 
 
     def show_viscm(self):
@@ -853,23 +879,85 @@ class WireframeView(object):
         self.marker.set_3d_properties(zs=[Jp])
         self.ax.figure.canvas.draw()
 
-def loadfile(path):
-    is_native = False
-    params = None
-    cmtype = None
-    with open(path) as f:
-        data = json.loads(f.read())
-        name = data["name"]
-        cmap = data["colors"]
-        cmap = [[int(c[i:i + 2], 16) / 256 for i in range(0, 6, 2)] for c in [cmap[i:i + 6] for i in range(0, len(cmap), 6)]]
-        cmap = matplotlib.colors.ListedColormap(cmap, "user created cm")
-        if "extensions" in data and "https://matplotlib.org/viscm" in data["extensions"]:
-            is_native = True
-            params = {k:v for k,v in data["extensions"]["https://matplotlib.org/viscm"].items()
-                    if k in ["xp", "yp", "min_Jp", "max_Jp", "fixed", "filter_k"]}
-            params["name"] = name
-            cmtype = data["extensions"]["https://matplotlib.org/viscm"]["cmtype"]
-    return params, cmtype, data, name, cmap, is_native,
+def loadpyfile(path):
+    is_native = True
+    cmtype = "linear"
+    method = "Bezier"
+    ns = {'__name__': '',
+          '__file__': os.path.basename(path),
+          }
+    with open(args.colormap) as f:
+        code = compile(f.read(),
+                       os.path.basename(args.colormap),
+                       'exec')
+        exec(code, globals(), ns)
+
+    params = ns.get('parameters', {})
+    if "min_JK" in params:
+        params["min_Jp"] = params.pop("min_JK")
+        params["max_Jp"] = params.pop("max_JK")
+    cmap = ns.get("test_cm", None)
+    return params, cmtype, cmap.name, cmap, is_native, method
+
+class Colormap(object):
+    def __init__(self, cmtype, method, uniform_space):
+        self.can_edit = True
+        self.params = {}    
+        self.cmtype = cmtype 
+        self.method = method
+        self.name = None
+        self.cmap = None
+        self.uniform_space = uniform_space
+        if self.uniform_space == "buggy-CAM02-UCS":
+            self.uniform_space = buggy_CAM02UCS
+    def load(self, path):
+        self.path = path
+        if os.path.isfile(path):
+            _, extension = os.path.splitext(path)
+            if extension == ".py":
+                self.can_edit = True
+                self.cmtype = "linear"
+                self.method = "Bezier"
+                ns = {'__name__': '',
+                      '__file__': os.path.basename(self.path),
+                      }
+                with open(self.path) as f:
+                    code = compile(f.read(),
+                                   os.path.basename(self.path),
+                                   'exec')
+                    exec(code, globals(), ns)
+                self.params = ns.get('parameters', {})
+                if not self.params:
+                    self.can_edit = False
+                if "min_JK" in self.params:
+                    self.params["min_Jp"] = self.params.pop("min_JK")
+                    self.params["max_Jp"] = self.params.pop("max_JK")
+                self.cmap = ns.get("test_cm", None)
+                self.name = self.cmap.name
+            elif extension == ".jscm":
+                self.can_edit = False
+                with open(self.path) as f:
+                    data = json.loads(f.read())
+                    self.name = data["name"]
+                    colors = data["colors"]
+                    colors = [colors[i:i + 6] for i in range(0, len(colors), 6)]
+                    colors = [[int(c[2 * i:2 * i + 2], 16) / 255 for i in range(3)] for c in colors]
+                    self.cmap = matplotlib.colors.ListedColormap(colors, self.name)
+                    if "extensions" in data and "https://matplotlib.org/viscm" in data["extensions"]:
+                        self.can_edit = True
+                        self.params = {k:v for k,v in data["extensions"]["https://matplotlib.org/viscm"].items()
+                                if k in {"xp", "yp", "min_Jp", "max_Jp", "fixed", "filter_k", "uniform_space"}}
+                        self.params["name"] = self.name
+                        self.cmtype = data["extensions"]["https://matplotlib.org/viscm"]["cmtype"]
+                        self.method = data["extensions"]["https://matplotlib.org/viscm"]["spline_method"]
+                        self.uniform_space = data["extensions"]["https://matplotlib.org/viscm"]["uniform_colorspace"]
+            else:
+                sys.exit("Unsupported filetype")
+        else:
+            self.can_edit = False
+            self.cmap = plt.get_cmap(path)
+            self.name = path
+        
 
 def main(argv):
     import argparse
@@ -911,7 +999,10 @@ def main(argv):
                         "curves.")
     parser.add_argument("-t", "--type", type=str,
                         default="linear", choices=["linear", "diverging", "diverging-continuous"],
-                        help="Choose a colormap type")
+                        help="Choose a colormap type. Supported options are 'linear', 'diverging', and 'diverging-continuous")
+    parser.add_argument("-m", "--method", type=str,
+                        default="CatmulClark", choices=["Bezier", "CatmulClark"],
+                        help="Choose a spline construction method. 'CatmulClark' is the default, but you may choose the legacy option 'Bezier'")
     parser.add_argument("--save", metavar="FILE",
                         default=None,
                         help="Immediately save visualization to a file "
@@ -921,58 +1012,31 @@ def main(argv):
                              "(useful with --save).")
     args = parser.parse_args(argv)
 
-    params = {}
-    cmap = None
-    is_native = False
+    cm = Colormap(args.type, args.method, args.uniform_space)
     app = QtGui.QApplication([])
 
     if args.colormap:
-        if os.path.isfile(args.colormap):
-            # with open(args.colormap) as f:
-            #     data = json.loads(f.read())
-            #     name = data["name"]
-            #     cmap = data["colors"]
-            #     cmap = [[int(c[i:i + 2], 16) / 256 for i in range(0, 6, 2)] for c in [cmap[i:i + 6] for i in range(0, len(cmap), 6)]]
-            #     cmap = matplotlib.colors.ListedColormap(cmap, "user created cm")
-            #     if "https://matplotlib.org/viscm" in data["extensions"]:
-            #         is_native = True
-            #         params = {k:v for k,v in data["extensions"]["https://matplotlib.org/viscm"].items()
-            #                 if k in ["xp", "yp", "min_Jp", "max_Jp", "fixed", "filter_k"]}
-            #         params["name"] = name
-            #         args.type = data["extensions"]["https://matplotlib.org/viscm"]["cmtype"]
-            params, args.type, data, name, cmap, is_native, = loadfile(args.colormap)
+        cm.load(args.colormap)
 
 
-        else:
-            cmap = plt.get_cmap(args.colormap)
-
-    uniform_space = args.uniform_space
-    if uniform_space == "buggy-CAM02-UCS":
-        uniform_space = buggy_CAM02UCS
     # Easter egg! I keep typing 'show' instead of 'view' so accept both
     if args.action in ("view", "show"):
-        if cmap is None:
+        if cm is None:
             sys.exit("Please specify a colormap")
         fig = plt.figure()
         figureCanvas = FigureCanvas(fig)
-        if is_native:
-            v = viscm_editor(figure=fig, uniform_space=uniform_space, cmtype=args.type, **params)
-            mainwindow = EditorWindow(figureCanvas, v)
-            mainwindow.loadviewer()
-        else:
-            v = viscm(cmap, name=name, figure=fig, uniform_space=uniform_space)
-            mainwindow = ViewerWindow(figureCanvas, v, args.colormap)
-
+        v = viscm(cm.cmap, name=cm.name, figure=fig, uniform_space=cm.uniform_space)
+        mainwindow = ViewerWindow(figureCanvas, v, cm.name)
         if args.save is not None:
             v.fig.set_size_inches(20, 12)
             v.fig.savefig(args.save)
     elif args.action == "edit":
-        if params is None:
+        if not cm.can_edit:
             sys.exit("Sorry, I don't know how to edit the specified colormap")
         # Hold a reference so it doesn't get GC'ed
         fig = plt.figure()
         figureCanvas = FigureCanvas(fig)
-        v = viscm_editor(figure=fig, uniform_space=uniform_space, cmtype=args.type, **params)
+        v = viscm_editor(figure=fig, uniform_space=cm.uniform_space, cmtype=cm.cmtype, method=cm.method, **cm.params)
         mainwindow = EditorWindow(figureCanvas, v)
     else:
         raise RuntimeError("can't happen")
@@ -1171,7 +1235,7 @@ class EditorWindow(QtGui.QMainWindow):
         self.setCentralWidget(self.main_widget)
 
     def rename(self):
-        name, ok = QtGui.QInputDialog.getText(self, "Rename your colormap", "Enter a name")
+        name, ok = QtGui.QInputDialog.getText(self, "Rename your colormap", "Enter a name", text=self.viscm_editor.name)
         self.viscm_editor.name = name
         self.setWindowTitle("VISCM Editing : " + self.viscm_editor.name)
 

@@ -32,9 +32,11 @@ Just run it with
 $ python bezier_builder.py
 
 """
+from __future__ import division, print_function, absolute_import
 
 import numpy as np
 from math import factorial
+from scipy import signal
 
 from matplotlib.lines import Line2D
 from matplotlib.backends.qt_compat import QtGui, QtCore
@@ -47,7 +49,6 @@ class ControlPointModel(object):
         self._xp = list(xp)
         self._yp = list(yp)
         self._fixed = fixed
-
         self.trigger = Trigger()
 
     def get_control_points(self):
@@ -62,7 +63,6 @@ class ControlPointModel(object):
 
     def remove_point(self, i):
         if i == self._fixed:
-
             return
         del self._xp[i]
         del self._yp[i]
@@ -109,7 +109,6 @@ class ControlPointBuilder(object):
 
     def on_button_press(self, event):
         modkey = event.guiEvent.modifiers()
-        print(self.mode)
         # Ignore clicks outside axes 
         if event.inaxes != self.ax:
             return
@@ -162,7 +161,7 @@ class ControlPointBuilder(object):
 ################################################################
 
 
-def compute_bezier_points(xp, yp, at, grid=256):
+def compute_bezier_points(xp, yp, at, method, grid=256):
     at = np.asarray(at)
     # The Bezier curve is parameterized by a value t which ranges from 0
     # to 1. However, there is a nonlinear relationship between this value
@@ -171,9 +170,7 @@ def compute_bezier_points(xp, yp, at, grid=256):
     # arclength(t), and then invert it.
     t = np.linspace(0, 1, grid)
 
-
-
-    arclength = compute_arc_length(xp, yp, t)   
+    arclength = compute_arc_length(xp, yp, method, t=t)   
     arclength /= arclength[-1]
     # Now (t, arclength) is a lookup table describing the t -> arclength
     # mapping. Invert it to get at -> t
@@ -182,25 +179,24 @@ def compute_bezier_points(xp, yp, at, grid=256):
     # (Might be quicker to np.interp againts x and y, but eh, doesn't
     # really matter.)
 
+    return method(list(zip(xp, yp)), at_t).T
 
-    return Bezier(list(zip(xp, yp)), at_t).T
-
-def compute_arc_length(xp, yp, t=None, grid=256):
+def compute_arc_length(xp, yp, method, t=None, grid=256):
     if t is None:
         t = np.linspace(0, 1, grid)
-    x, y = Bezier(list(zip(xp, yp)), t).T
+    x, y = method(list(zip(xp, yp)), t).T
     x_deltas = np.diff(x)
     y_deltas = np.diff(y)
-    arclength_deltas = np.empty(t.shape)
+    arclength_deltas = np.empty(len(x))
     if t.size == 0:
         return np.asarray([0])
     arclength_deltas[0] = 0
     np.hypot(x_deltas, y_deltas, out=arclength_deltas[1:])
     return np.cumsum(arclength_deltas)
 
-
 class SingleBezierCurveModel(object):
-    def __init__(self, control_point_model):
+    def __init__(self, control_point_model, method="CatmulClark"):
+        self.method = eval(method)
         self.control_point_model = control_point_model
         x, y = self.get_bezier_points()
         self.bezier_curve = Line2D(x, y)
@@ -210,9 +206,9 @@ class SingleBezierCurveModel(object):
     def get_bezier_points(self, num=200):
         return self.get_bezier_points_at(np.linspace(0, 1, num))
 
-    def get_bezier_points_at(self, at, grid=256):
+    def get_bezier_points_at(self, at, grid=1000):
         xp, yp, _ = self.control_point_model.get_control_points()
-        return compute_bezier_points(xp, yp, at, grid=grid)
+        return compute_bezier_points(xp, yp, at, self.method, grid=grid)
 
     def _refresh(self):
         x, y = self.get_bezier_points()
@@ -221,8 +217,8 @@ class SingleBezierCurveModel(object):
 
 
 class TwoBezierCurveModel(object):
-    def __init__(self, control_point_model):
-       
+    def __init__(self, control_point_model, method="CatmulClark"):
+        self.method = eval(method)
         self.control_point_model = control_point_model
         x, y = self.get_bezier_points()
         self.bezier_curve = Line2D(x, y)
@@ -237,8 +233,7 @@ class TwoBezierCurveModel(object):
         at = np.asarray(at)
         if at.ndim == 0:
             at = np.array([at])
-        # orig_shape = at.shape
-        # at = np.atleast1d(at)
+            
         low_mask = (at < 0.5)
         high_mask = (at >= 0.5)
 
@@ -250,14 +245,8 @@ class TwoBezierCurveModel(object):
         high_xp = xp[fixed:]
         high_yp = yp[fixed:]
 
-        # XX FIXME: This is wrong:
-        # - we need to calculate the length of each arm
-        # - cut one off
-        # - rescale low and high values (which are currently in [0, 0.5] and
-        #   [0.5, 1]) to refer to locations in these two arms
-
-        low_al = compute_arc_length(low_xp, low_yp).max()
-        high_al = compute_arc_length(high_xp, high_yp).max()
+        low_al = compute_arc_length(low_xp, low_yp, self.method).max()
+        high_al = compute_arc_length(high_xp, high_yp, self.method).max()
 
         sf = min(low_al, high_al) / max(low_al, high_al)
 
@@ -270,22 +259,13 @@ class TwoBezierCurveModel(object):
             high_at = (0.5 + (high_at - 0.5) * sf) * 2 - 1
             low_at = low_at * 2 
 
-
         low_points = compute_bezier_points(low_xp, low_yp,
-                                           low_at, grid=grid)
+                                           low_at, self.method, grid=grid)
         high_points = compute_bezier_points(high_xp, high_yp,
-                                            high_at, grid=grid)
-        
-
-        # out = np.empty_like(at)
-        # out[low_mask] = low_points
-        # out[high_mask] = high_points
+                                            high_at, self.method, grid=grid)
         out = np.concatenate([low_points,high_points], 1)
-        # out = out.reshape(orig_shape)
-
-
-
         return out
+
     def _refresh(self):
         x, y = self.get_bezier_points()
         self.bezier_curve.set_data(x, y)
@@ -330,7 +310,7 @@ def Bernstein(n, k):
 
 def Bezier(points, at):
     """Build Bézier curve from points.
-
+    Deprecated. CatmulClark builds nicer splines
     """
     at = np.asarray(at)
     at_flat = at.ravel()
@@ -339,4 +319,27 @@ def Bezier(points, at):
     for ii in range(N):
         curve += np.outer(Bernstein(N - 1, ii)(at_flat), points[ii])
     return curve.reshape(at.shape + (2,))
+
+def CatmulClark(points, at):
+    points = np.asarray(points)
+
+    while len(points) < len(at):
+        new_p = np.zeros((2 * len(points), 2))
+        new_p[0] = points[0]
+        new_p[-1] = points[-1]
+        new_p[1:-2:2] = 3/4. * points[:-1] + 1/4. * points[1:]
+        new_p[2:-1:2] = 1/4. * points[:-1] + 3/4. * points[1:]
+        points = new_p
+    xp, yp = zip(*points)
+    xp = np.interp(at, np.linspace(0, 1, len(xp)), xp)
+    yp = np.interp(at, np.linspace(0, 1, len(yp)), yp)
+    return np.asarray(list(zip(xp, yp)))
+
+
+
+
+
+
+
+
 
