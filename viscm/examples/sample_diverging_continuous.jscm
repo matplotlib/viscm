@@ -1,43 +1,37 @@
 {
-    "domain": "continuous",
-    "name": "sample_diverging_continuous",
+    "extensions": {
+        "https://matplotlib.org/viscm": {
+            "min_Jp": 15,
+            "xp": [
+                -12.434855680276272,
+                -5.650595164672481,
+                0,
+                6.391467250524272,
+                -7.177053780683337
+            ],
+            "filter_k": 10,
+            "max_Jp": 95,
+            "yp": [
+                11.6180461329715,
+                -12.126865671641795,
+                0,
+                -0.4240162822252458,
+                31.122795115332423
+            ],
+            "cmtype": "diverging-continuous",
+            "spline_method": "CatmulClark",
+            "uniform_colorspace": "CAM02-UCS",
+            "fixed": 2
+        }
+    },
+    "content-type": "application/vnd.matplotlib.colormap-v1+json",
     "usage-hints": [
         "red-green-colorblind-safe",
         "greyscale-safe"
     ],
-    "colorspace": "sRGB",
-    "extensions": {
-        "https://matplotlib.org/viscm": {
-            "cmtype": "diverging-continuous",
-            "fixed": 4,
-            "yp": [
-                -5,
-                20,
-                20,
-                -21,
-                0,
-                21,
-                -38,
-                -20,
-                -5
-            ],
-            "filter_k": 10,
-            "max_Jp": 95,
-            "min_Jp": 15,
-            "xp": [
-                -9,
-                -15,
-                43,
-                30,
-                0,
-                -20,
-                -30,
-                20,
-                1
-            ]
-        }
-    },
-    "colors": "1b22111d23111e23112024112224112325112525112726112826112a26112c27112d27112f27113128113228113428113629123729123929123b2a123c2a133e2a13402a14412b14432b15442b15462b16482b16492c174b2c174c2c184e2c194f2c19512c1a532d1b542d1c562d1d572d1e592d1e5a2d1f5c2d205d2d215f2d22602e23622e25632e26652e27662e28682e29692e2b6b2e2c6c2e2d6e2e2f6f2e30702e31722e33732e35742f36762f38772f3a782f3b792f3d7b2f3f7c2f417d30437e30457f304780314981314b81324d82335083345283345484355684365884385a84395c843a5e843c60843d62843e6384406584416684436883456983466a83486b83496c824b6d824c6e824e6f814f708151708152718054728055728057738058737f5a747f5b747f5c757f5e757e5f757e61767e62767e63767e64777e66777d67777d68777d69787d6b787d6c787d6d787d6e797d6f797d71797d72797d737a7d747a7e757a7e767a7e777b7e787b7e797b7e7a7c7f7b7c7f7c7c807d7c807e7d807f7d81807d81817d81837d81847d81857d81867d81877d81887e81897e818a7e818c7e818d7f818e7f808f808090808092817f93827f94827e95837e96847d98867d99877c9a887c9b8a7b9c8b7b9d8d7a9f8e7aa0907aa19279a29479a39579a49779a59979a69b79a79d79a89f79a9a179aaa379aaa579aba779aca97aadab7aaead7bafaf7bb0b17cb0b37cb1b57db2b77eb3b97eb4bb7fb4bd80b5bf81b6c182b7c383b7c684b8c885b9ca86b9cc88bace89bbd08abbd18cbcd38dbcd58fbdd790bed992bedb94bfdd95bfdf97c0e099c0e29bc1e49dc1e59fc2e7a1c2e8a3c3eaa5c3eba7c4eda9c4eeabc5efadc5f1afc6f2b2c6f3b4c7f4b6c7f5b8c8f6bbc8f7bdc9f8bfc9f9c1caf9c3cafac6cbfac8cbfbcaccfbccccfccecdfcd0cefcd3cefcd5cffcd7cffcd9d0fcdad1fcdcd2fcded3fbe0d3fbe1d4fbe3d5fae4d6fae5d7f9e6d8f9e7daf9e9dbf8e9dcf8eaddf7ebdef7ece0f7ede1f7ede2f7eee4f6eee5f6efe6f6f0e8f6f0e9f6f1eaf7f1ecf7f2edf7",
     "license": "http://creativecommons.org/publicdomain/zero/1.0/",
-    "content-type": "application/vnd.matplotlib.colormap-v1+json"
+    "colors": "0727050827060928070a29080b2a0a0c2a0b0d2b0d0d2c0e0e2d0f0f2d11102e12112f1312301513301614311715321915321a16331b17341d18351e19351f1a36201b37221c37231d38241d39261e39271f3a28203b29213b2b223c2c233d2d243d2e253e30253f31263f322740332841342941362a42372b43382c43392c443a2d453c2e453d2f463e30463f314740324841334842334944344a45354a46364b47374c48384c49384d4a394e4c3a4e4d3b4f4e3c504f3d50503d51513e52523f525340535441545641545742555843565944565a45575b46585c46585d47595f485960495a614a5b624b5b634b5c644c5d654d5d664e5e674f5f68505f6a51606b52606b53616c55626d56626e57636e58636f5a646f5b656f5c65705d66705e66705f6771616871626871636972646a72656b72666b72676c73686d73696d736a6e746b6f746c6f746d70756e71756f71757072767173767273777374777475777576787676787777797878797978797a797a7b7a7a7c7b7b7d7b7b7e7c7c7f7d7c807d7d827e7e837f7f847f7f8580808780818881828981838a82848c83848d83858e84869084879185879285889486889587899687899788899889899a89899b8a8a9c8b8a9d8c8a9e8d8a9f8d8aa08e8aa18f8aa2908aa3918aa4918aa5928aa6938aa7948aa7958aa8968aa9968aaa978aab988aac998aad9a8aae9b8aaf9c8ab09d8ab19e8ab19e8ab29f8ab3a08ab4a18ab5a28ab6a38ab7a48ab8a58ab8a68ab9a78abaa88abba98abcaa8abdab8abeab8abfac8ac0ad8ac0ae8ac1af8ac2b08ac3b18ac4b28ac5b38ac6b489c7b589c7b689c8b789c9b889cab989cbba89ccbb89cdbc88cebd88cfbe88d0bf88d0c088d1c188d2c288d3c387d4c487d5c587d6c687d7c787d8c886d9c986daca86dbcb86dbcc85dccd85ddce85decf85dfd084e0d184e1d284e2d483e3d583e4d683e5d782e6d882e7d982e8da81e9db81eadc80ebdd80ecde80eddf7feee07fefe27ef0e37ef1e47ef2e57df3e67df4e77cf5e87cf6e97bf7ea7bf8ec7af9ed79faee79fbef78fcf078fdf177",
+    "colorspace": "sRGB",
+    "name": "sample_diverging_continuous",
+    "domain": "continuous"
 }
