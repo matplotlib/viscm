@@ -51,7 +51,7 @@ _JCh_to_sRGB1 = cspace_converter(GREYSCALE_CONVERSION_SPACE, "sRGB1")
 def to_greyscale(sRGB1):
     JCh = _sRGB1_to_JCh(sRGB1)
     JCh[..., 1] = 0
-    return _JCh_to_sRGB1(JCh)
+    return np.clip(_JCh_to_sRGB1(JCh), 0, 1)
 
 _deuter50_space = {"name": "sRGB1+CVD",
                    "cvd_type": "deuteranomaly",
