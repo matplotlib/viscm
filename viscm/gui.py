@@ -103,8 +103,11 @@ class TransformedCMap(matplotlib.colors.Colormap):
         self.base_cmap = base_cmap
 
     def __call__(self, *args, **kwargs):
-        fx = self.base_cmap(*args, **kwargs)
+        bts = kwargs.pop('bytes', False)
+        fx = self.base_cmap(*args, bytes=False, **kwargs)
         tfx = self.transform(fx)
+        if bts:
+            return (tfx * 255).astype('uint8')
         return tfx
 
     def set_bad(self, *args, **kwargs):
