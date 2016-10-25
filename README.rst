@@ -17,7 +17,7 @@ Downloads:
   https://pypi.python.org/pypi/viscm/
 
 Code and bug tracker:
-  https://github.com/bids/viscm
+  https://github.com/matplotlib/viscm
 
 Contact:
   Nathaniel J. Smith <njs@pobox.com> and Stéfan van der Walt <stefanv@berkeley.edu>
