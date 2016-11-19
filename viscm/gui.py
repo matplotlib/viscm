@@ -445,7 +445,7 @@ def draw_sRGB_gamut_Jp_slice(ax, Jp, uniform_space,
 
 
 def _viscm_editor_axes(fig):
-    grid = GridSpec(1, 2,
+    grid = GridSpec(2, 2,
                     width_ratios=[5, 1],
                     height_ratios=[6, 1])
     axes = {'bezier': grid[0, 0],
