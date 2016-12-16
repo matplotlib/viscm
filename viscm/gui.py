@@ -59,7 +59,7 @@ _JCh_to_sRGB1 = cspace_converter(GREYSCALE_CONVERSION_SPACE, "sRGB1")
 def to_greyscale(sRGB1):
     JCh = _sRGB1_to_JCh(sRGB1)
     JCh[..., 1] = 0
-    return _JCh_to_sRGB1(JCh)
+    return np.clip(_JCh_to_sRGB1(JCh), 0, 1)
 
 _deuter50_space = {"name": "sRGB1+CVD",
                    "cvd_type": "deuteranomaly",
@@ -110,8 +110,11 @@ class TransformedCMap(matplotlib.colors.Colormap):
         self.base_cmap = base_cmap
 
     def __call__(self, *args, **kwargs):
-        fx = self.base_cmap(*args, **kwargs)
+        bts = kwargs.pop('bytes', False)
+        fx = self.base_cmap(*args, bytes=False, **kwargs)
         tfx = self.transform(fx)
+        if bts:
+            return (tfx * 255).astype('uint8')
         return tfx
 
     def set_bad(self, *args, **kwargs):
@@ -977,7 +980,7 @@ def main(argv):
         description="A colormap tool.",
     )
     parser.add_argument("action", metavar="ACTION",
-                        help="'edit' or 'view'",
+                        help="'edit' or 'view' (or 'show', same as 'view')",
                         choices=["edit", "view", "show"],
                         default="edit",
                         nargs="?")
