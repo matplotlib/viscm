@@ -16,8 +16,14 @@ import numpy as np
 # Do this first before any other matplotlib imports, to force matplotlib to
 # use a Qt backend
 from matplotlib.backends.qt_compat import QtWidgets, QtCore
-from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
-#from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas5
+from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas4
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas5
+
+def FigureCanvas(fig):
+    try:
+        return FigureCanvas5(fig)
+    except Exception:
+        return FigureCanvas4(fig)
 
 import matplotlib
 import matplotlib.pyplot as plt
