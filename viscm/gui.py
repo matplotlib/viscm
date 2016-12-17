@@ -30,7 +30,7 @@ import matplotlib.pyplot as plt
 import mpl_toolkits.mplot3d
 from matplotlib.gridspec import GridSpec
 import matplotlib.colors
-from matplotlib.colors import LinearSegmentedColormap
+from matplotlib.colors import ListedColormap
 
 from scipy.interpolate import UnivariateSpline
 
@@ -174,9 +174,6 @@ def _vis_axes(fig):
     return axes
 
 
-# N=256 matches the default quantization for LinearSegmentedColormap, which
-# reduces quantization/aliasing artifacts (esp. in the perceptual deltas
-# plot).
 class viscm(object):
     def __init__(self, cm, figure=None, uniform_space="CAM02-UCS",
                  name=None, N=256, N_dots=50, show_gamut=False):
@@ -193,9 +190,25 @@ class viscm(object):
 
         axes = _vis_axes(self.figure)
 
-        x = np.linspace(0, 1, N)
+        # ListedColormap is used for many matplotlib builtin colormaps
+        # (e.g. viridis) and also what we use in the editor. It's the most
+        # efficient way to work with arbitrary smooth colormaps -- pick enough
+        # points that it looks smooth, and then don't waste time interpolating
+        # between them. But then it creates weird issues in the analyzer if
+        # our N doesn't match their N, especially when we try to compute the
+        # derivative. (Specifically the derivative oscillates between 0 and a
+        # large value depending on where our sample points happen to fall
+        # relative to the cutoffs between the ListedColormap samples.) So if
+        # this is a smooth (large N) ListedColormap, then just use its samples
+        # directly:
+        if isinstance(cm, ListedColormap) and cm.N >= 100:
+            RGB = np.asarray(cm.colors)[:, :3]
+            N = RGB.shape[0]
+            x = np.linspace(0, 1, N)
+        else:
+            x = np.linspace(0, 1, N)
+            RGB = cm(x)[:, :3]
         x_dots = np.linspace(0, 1, N_dots)
-        RGB = cm(x)[:, :3]
         RGB_dots = cm(x_dots)[:, :3]
 
         ax = axes['cmap']
@@ -224,22 +237,15 @@ class viscm(object):
         ax = axes['deltas']
         local_deltas = np.sqrt(
             np.sum((Jpapbp[:-1, :] - Jpapbp[1:, :]) ** 2, axis=-1))
-        
-
-        travelled = np.concatenate([[0], np.cumsum(local_deltas)])
-        travelled_spline = UnivariateSpline(x, travelled, s=N * 0.01)
-        deriv_spline = travelled_spline.derivative()
-        first_derivs = deriv_spline(x)
-
-
-        ax.plot(x, first_derivs)
-        arclength = np.sum(local_deltas) / N
-        rmse = np.std(local_deltas)
-        title(ax, "Perceptual deltas")
+        local_derivs = N * local_deltas
+        ax.plot(x[1:], local_derivs)
+        arclength = np.sum(local_deltas)
+        rmse = np.std(local_derivs)
+        title(ax, "Perceptual derivative")
         label(ax,
               "Length: %0.1f\nRMS deviation from flat: %0.1f (%0.1f%%)"
               % (arclength, rmse, 100 * rmse / arclength))
-        ax.set_ylim(-delta_ymax(-first_derivs), delta_ymax(first_derivs))
+        ax.set_ylim(-delta_ymax(-local_derivs), delta_ymax(local_derivs))
         ax.get_xaxis().set_visible(False)
 
         ax = axes['cmap-greyscale']
@@ -251,25 +257,20 @@ class viscm(object):
         ax = axes['lightness-deltas']
         ax.axhline(0, linestyle="--", color="grey")
         lightness_deltas = np.diff(Jpapbp[:, 0])
+        lightness_derivs = N * lightness_deltas
 
-        travelled = np.concatenate([[0], np.cumsum(lightness_deltas)])
-        travelled_spline = UnivariateSpline(x, travelled, s=N * 0.01)
-        deriv_spline = travelled_spline.derivative()
-        first_derivs = deriv_spline(x)
-
-        ax.plot(x, first_derivs)
-        title(ax,
-              "Perceptual lightness deltas")
-        lightness_arclength = np.sum(np.abs(lightness_deltas)) / N
-        lightness_rmse = np.std(lightness_deltas)
+        ax.plot(x[1:], lightness_derivs)
+        title(ax, "Perceptual lightness derivative")
+        lightness_arclength = np.sum(np.abs(lightness_deltas))
+        lightness_rmse = np.std(lightness_derivs)
         label(ax,
               "Length: %0.1f\nRMS deviation from flat: %0.1f (%0.1f%%)"
               % (lightness_arclength,
                  lightness_rmse,
-                 100 * lightness_rmse / np.mean(lightness_deltas)))
+                 100 * lightness_rmse / lightness_arclength))
 
-        ax.set_ylim(-delta_ymax(-first_derivs),
-                    delta_ymax(first_derivs))
+        ax.set_ylim(-delta_ymax(-lightness_derivs),
+                    delta_ymax(lightness_derivs))
         ax.get_xaxis().set_visible(False)
 
         # ax = axes['lightness']
@@ -631,9 +632,9 @@ class viscm_editor(object):
 
 
     def show_viscm(self):
-        cm = LinearSegmentedColormap.from_list(
-            'test_cm',
-            self.cmap_model.get_sRGB(num=256)[0])
+        cm = ListedColormap(self.cmap_model.get_sRGB(num=256)[0],
+                            name=self.name)
+
         return cm
 
     def _jp_update(self, minval, maxval):
