@@ -577,15 +577,6 @@ class viscm_editor(object):
             self.highlight_point_model1)
         self.axes = axes
 
-    def plot_3d_gamut(self):
-        fig, ax = plt.subplots(subplot_kw=dict(projection='3d'))
-        self.wireframe_view = WireframeView(ax,
-                                            self.cmap_model,
-                                            self.highlight_point_model,
-                                            self._uniform_space)
-        self.gamutfigure = fig
-        return fig
-
     def save_colormap(self, filepath):
         with open(filepath, 'w') as f:
             xp, yp, fixed = self.control_point_model.get_control_points()
@@ -855,42 +846,6 @@ class HighlightPoint2DView(object):
         self.ax.figure.canvas.draw()
 
 
-class WireframeView(object):
-    def __init__(self, ax, cmap_model, highlight_point_model, uniform_space):
-        self.ax = ax
-        self.cmap_model = cmap_model
-        self.highlight_point_model = highlight_point_model
-
-        Jp, ap, bp = self.cmap_model.get_Jpapbp()
-        self.line = self.ax.plot([0, 10], [0, 10])[0]
-        Jp, ap, bp = self.highlight_point_model.get_Jpapbp()
-        self.marker = self.ax.plot([Jp], [ap], [bp], "y.", mew=3)[0]
-
-        gamut_patch = sRGB_gamut_patch(uniform_space)
-        # That function returns a patch where each face is colored to match
-        # the represented colors. For present purposes we want something
-        # less... colorful.
-        gamut_patch.set_facecolor([0.5, 0.5, 0.5, 0.1])
-        gamut_patch.set_edgecolor([0.2, 0.2, 0.2, 0.1])
-        self.ax.add_collection3d(gamut_patch)
-
-        _setup_Jpapbp_axis(self.ax)
-
-        self._refresh_line()
-        self._refresh_point()
-
-    def _refresh_line(self):
-        Jp, ap, bp = self.cmap_model.get_Jpapbp()
-        self.line.set_data(ap, bp)
-        self.line.set_3d_properties(zs=Jp)
-        self.ax.figure.canvas.draw()
-
-    def _refresh_point(self):
-        Jp, ap, bp = self.highlight_point_model.get_Jpapbp()
-        self.marker.set_data([ap], [bp])
-        self.marker.set_3d_properties(zs=[Jp])
-        self.ax.figure.canvas.draw()
-
 def loadpyfile(path):
     is_native = True
     cmtype = "linear"
@@ -1137,8 +1092,6 @@ class EditorWindow(QtWidgets.QMainWindow):
                                 QtCore.Qt.CTRL + QtCore.Qt.Key_Q)
 
         options_menu = QtWidgets.QMenu('&Options', self)
-        options_menu.addAction('&Show Gamut', self.view_gamut,
-                                QtCore.Qt.CTRL + QtCore.Qt.Key_G)
         options_menu.addAction('&Load in Viewer', self.loadviewer,
                                 QtCore.Qt.CTRL + QtCore.Qt.Key_V)
 
@@ -1280,25 +1233,13 @@ class EditorWindow(QtWidgets.QMainWindow):
         self.addAction.setChecked(False)
         self.moveAction.setChecked(False)
         self.viscm_editor.bezier_builder.mode = "remove"
+
     def export(self):
         fileName = QtWidgets.QFileDialog.getSaveFileName(
             caption="Export file",
             directory=self.viscm_editor.name + ".py",
             filter=".py (*.py)")
         self.viscm_editor.export_py(fileName)
-
-    def view_gamut(self):
-        gamut_figure = self.viscm_editor.plot_3d_gamut()
-        figurecanvas = FigureCanvas(gamut_figure)
-
-        figurecanvas.setSizePolicy(QtWidgets.QSizePolicy.Expanding,
-                                   QtWidgets.QSizePolicy.Expanding)
-        figurecanvas.updateGeometry()
-
-        gamut_window = GamutWindow(figurecanvas, gamut_figure, parent=self)
-        gamut_window.resize(1000, 600)
-
-        gamut_window.show()
 
     def fileQuit(self):
         self.close()
@@ -1326,48 +1267,6 @@ class EditorWindow(QtWidgets.QMainWindow):
         newwindow.resize(800, 600)
 
         newwindow.show()
-
-
-class GamutWindow(QtWidgets.QMainWindow):
-    def __init__(self, figurecanvas, figure, parent=None):
-        QtWidgets.QMainWindow.__init__(self, parent)
-        self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
-        self.figure = figure
-
-        file_menu = QtWidgets.QMenu('&File', self)
-        file_menu.addAction('&Save', self.save,
-                            QtCore.Qt.CTRL + QtCore.Qt.Key_S)
-        file_menu.addAction('&Quit', self.fileQuit,
-                            QtCore.Qt.CTRL + QtCore.Qt.Key_Q)
-
-        help_menu = QtWidgets.QMenu('&Help', self)
-        help_menu.addAction('&About', about)
-
-        self.menuBar().addMenu(file_menu)
-        self.menuBar().addMenu(help_menu)
-        self.setWindowTitle("VISCM Viewing 3D Gamut")
-
-        self.main_widget = QtWidgets.QWidget(self)
-
-        l = QtWidgets.QVBoxLayout(self.main_widget)
-        l.addWidget(figurecanvas)
-
-        self.main_widget.setFocus()
-
-        self.setCentralWidget(self.main_widget)
-
-    def save(self):
-        fileName = QtWidgets.QFileDialog.getSaveFileName(
-            caption="Save file",
-            directory="3d_gamut.png",
-            filter="Image Files (*.png *.jpg *.bmp)")
-        self.figure.savefig(fileName)
-
-    def fileQuit(self):
-        self.close()
-
-    def closeEvent(self, ce):
-        self.fileQuit()
 
 
 if __name__ == "__main__":
