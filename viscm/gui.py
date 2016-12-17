@@ -490,7 +490,7 @@ def _viscm_editor_axes(fig):
 
 class viscm_editor(object):
     def __init__(self, figure=None, uniform_space="CAM02-UCS",
-                 min_Jp=15, max_Jp=95, xp=None, yp=None, cmtype="linear", filter_k=10, fixed=-1, name="new cm", method="CatmulClark"):
+                 min_Jp=15, max_Jp=95, xp=None, yp=None, cmtype="linear", filter_k=3, fixed=-1, name="new cm", method="CatmulClark"):
         from .bezierbuilder import SingleBezierCurveModel, TwoBezierCurveModel, ControlPointBuilder, ControlPointModel
         if figure is None:
             figure = plt.figure()
@@ -502,7 +502,6 @@ class viscm_editor(object):
         axes = _viscm_editor_axes(self.figure)
         self.min_Jp = min_Jp
         self.max_Jp = max_Jp
-        self.filter_k = filter_k
         self.fixed = fixed
         if self.cmtype in ["diverging", "diverging-continuous"] and xp is None:
             self.fixed = 4;
@@ -545,7 +544,7 @@ class viscm_editor(object):
                                           self.max_Jp,
                                           uniform_space,
                                           cmtype=cmtype,    
-                                          filter_k=self.filter_k)
+                                          filter_k=filter_k)
         
 
         self.highlight_point_model = HighlightPointModel(self.cmap_model, startJp)
@@ -577,15 +576,6 @@ class viscm_editor(object):
             self.highlight_point_model1)
         self.axes = axes
 
-    def plot_3d_gamut(self):
-        fig, ax = plt.subplots(subplot_kw=dict(projection='3d'))
-        self.wireframe_view = WireframeView(ax,
-                                            self.cmap_model,
-                                            self.highlight_point_model,
-                                            self._uniform_space)
-        self.gamutfigure = fig
-        return fig
-
     def save_colormap(self, filepath):
         with open(filepath, 'w') as f:
             xp, yp, fixed = self.control_point_model.get_control_points()
@@ -605,7 +595,7 @@ class viscm_editor(object):
                           "xp" : xp,
                           "yp" : yp,
                           "fixed" : fixed,
-                          "filter_k" : self.filter_k,
+                          "filter_k" : self.cmap_model.filter_k,
                           "cmtype" : self.cmtype,
                           "uniform_colorspace" : self._uniform_space,
                           "spline_method" : self.method
@@ -652,9 +642,7 @@ class viscm_editor(object):
             self.cmap_model.set_Jp_minmax(self.min_Jp, self.max_Jp)
 
     def _filter_k_update(self, filter_k):
-        if filter_k >= 0:
-            self.filter_k = filter_k
-            self.cmap_model.set_filter_k(filter_k)
+        self.cmap_model.set_filter_k(filter_k)
 
 
 class BezierCMapModel(object):
@@ -688,7 +676,7 @@ class BezierCMapModel(object):
         at = np.linspace(0, 1, num)
         if self.cmtype == "diverging":
             from scipy.special import erf
-            at = 2 * np.cumsum(erf(self.filter_k * (at - 0.5))) / num + 1
+            at = 1 + 2 * np.cumsum(erf(10 ** self.filter_k * (at - 0.5))) / num
         Jp = (self.max_Jp - self.min_Jp) * at + self.min_Jp
         return Jp, ap, bp
 
@@ -854,42 +842,6 @@ class HighlightPoint2DView(object):
         self.marker.set_data([ap], [bp])
         self.ax.figure.canvas.draw()
 
-
-class WireframeView(object):
-    def __init__(self, ax, cmap_model, highlight_point_model, uniform_space):
-        self.ax = ax
-        self.cmap_model = cmap_model
-        self.highlight_point_model = highlight_point_model
-
-        Jp, ap, bp = self.cmap_model.get_Jpapbp()
-        self.line = self.ax.plot([0, 10], [0, 10])[0]
-        Jp, ap, bp = self.highlight_point_model.get_Jpapbp()
-        self.marker = self.ax.plot([Jp], [ap], [bp], "y.", mew=3)[0]
-
-        gamut_patch = sRGB_gamut_patch(uniform_space)
-        # That function returns a patch where each face is colored to match
-        # the represented colors. For present purposes we want something
-        # less... colorful.
-        gamut_patch.set_facecolor([0.5, 0.5, 0.5, 0.1])
-        gamut_patch.set_edgecolor([0.2, 0.2, 0.2, 0.1])
-        self.ax.add_collection3d(gamut_patch)
-
-        _setup_Jpapbp_axis(self.ax)
-
-        self._refresh_line()
-        self._refresh_point()
-
-    def _refresh_line(self):
-        Jp, ap, bp = self.cmap_model.get_Jpapbp()
-        self.line.set_data(ap, bp)
-        self.line.set_3d_properties(zs=Jp)
-        self.ax.figure.canvas.draw()
-
-    def _refresh_point(self):
-        Jp, ap, bp = self.highlight_point_model.get_Jpapbp()
-        self.marker.set_data([ap], [bp])
-        self.marker.set_3d_properties(zs=[Jp])
-        self.ax.figure.canvas.draw()
 
 def loadpyfile(path):
     is_native = True
@@ -1137,8 +1089,6 @@ class EditorWindow(QtWidgets.QMainWindow):
                                 QtCore.Qt.CTRL + QtCore.Qt.Key_Q)
 
         options_menu = QtWidgets.QMenu('&Options', self)
-        options_menu.addAction('&Show Gamut', self.view_gamut,
-                                QtCore.Qt.CTRL + QtCore.Qt.Key_G)
         options_menu.addAction('&Load in Viewer', self.loadviewer,
                                 QtCore.Qt.CTRL + QtCore.Qt.Key_V)
 
@@ -1190,15 +1140,17 @@ class EditorWindow(QtWidgets.QMainWindow):
         mainlayout.addLayout(min_slider_layout)
 
         if viscm_editor.cmtype == "diverging":
+            # QSlider is integer-only, and we want floats between [log10(5), 3]
+            # So we scale up by 1000 and the edit_smoothness callback fixes it
+            # up.
             smoothness_slider = QtWidgets.QSlider(QtCore.Qt.Horizontal)
-            smoothness_slider.setMinimum(0)
-            smoothness_slider.setMaximum(100)
-            smoothness_slider.setValue(viscm_editor.filter_k * 5)
-            smoothness_slider.setTickPosition(QtWidgets.QSlider.TicksBelow)
-            smoothness_slider.setTickInterval(100)
+            smoothness_slider.setMinimum(699)
+            smoothness_slider.setMaximum(3000)
+            smoothness_slider.setValue(1)  # Fixme
+            smoothness_slider.setTickPosition(QtWidgets.QSlider.NoTicks)
             smoothness_slider.valueChanged.connect(self.edit_smoothness)
 
-            smoothness_slider_num = QtWidgets.QLabel(str(viscm_editor.filter_k))
+            smoothness_slider_num = QtWidgets.QLabel(str(viscm_editor.cmap_model.filter_k))
             smoothness_slider_num.setFixedWidth(30)
             self.smoothness_slider_num = smoothness_slider_num
 
@@ -1256,7 +1208,7 @@ class EditorWindow(QtWidgets.QMainWindow):
         self.setWindowTitle("VISCM Editing : " + self.viscm_editor.name)
 
     def edit_smoothness(self):
-        num = self.smoothness_slider.value() / 5;
+        num = self.smoothness_slider.value() / 1000
         self.smoothness_slider_num.setText(str(num))
         self.viscm_editor._filter_k_update(num)
 
@@ -1295,19 +1247,6 @@ class EditorWindow(QtWidgets.QMainWindow):
             filter=".py (*.py)")
         self.viscm_editor.export_py(fileName)
 
-    def view_gamut(self):
-        gamut_figure = self.viscm_editor.plot_3d_gamut()
-        figurecanvas = FigureCanvas(gamut_figure)
-
-        figurecanvas.setSizePolicy(QtWidgets.QSizePolicy.Expanding,
-                                   QtWidgets.QSizePolicy.Expanding)
-        figurecanvas.updateGeometry()
-
-        gamut_window = GamutWindow(figurecanvas, gamut_figure, parent=self)
-        gamut_window.resize(1000, 600)
-
-        gamut_window.show()
-
     def fileQuit(self):
         self.close()
 
@@ -1334,48 +1273,6 @@ class EditorWindow(QtWidgets.QMainWindow):
         newwindow.resize(800, 600)
 
         newwindow.show()
-
-
-class GamutWindow(QtWidgets.QMainWindow):
-    def __init__(self, figurecanvas, figure, parent=None):
-        QtWidgets.QMainWindow.__init__(self, parent)
-        self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
-        self.figure = figure
-
-        file_menu = QtWidgets.QMenu('&File', self)
-        file_menu.addAction('&Save', self.save,
-                            QtCore.Qt.CTRL + QtCore.Qt.Key_S)
-        file_menu.addAction('&Quit', self.fileQuit,
-                            QtCore.Qt.CTRL + QtCore.Qt.Key_Q)
-
-        help_menu = QtWidgets.QMenu('&Help', self)
-        help_menu.addAction('&About', about)
-
-        self.menuBar().addMenu(file_menu)
-        self.menuBar().addMenu(help_menu)
-        self.setWindowTitle("VISCM Viewing 3D Gamut")
-
-        self.main_widget = QtWidgets.QWidget(self)
-
-        l = QtWidgets.QVBoxLayout(self.main_widget)
-        l.addWidget(figurecanvas)
-
-        self.main_widget.setFocus()
-
-        self.setCentralWidget(self.main_widget)
-
-    def save(self):
-        fileName = QtWidgets.QFileDialog.getSaveFileName(
-            caption="Save file",
-            directory="3d_gamut.png",
-            filter="Image Files (*.png *.jpg *.bmp)")
-        self.figure.savefig(fileName)
-
-    def fileQuit(self):
-        self.close()
-
-    def closeEvent(self, ce):
-        self.fileQuit()
 
 
 if __name__ == "__main__":
