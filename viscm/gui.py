@@ -490,7 +490,7 @@ def _viscm_editor_axes(fig):
 
 class viscm_editor(object):
     def __init__(self, figure=None, uniform_space="CAM02-UCS",
-                 min_Jp=15, max_Jp=95, xp=None, yp=None, cmtype="linear", filter_k=3, fixed=-1, name="new cm", method="CatmulClark"):
+                 min_Jp=15, max_Jp=95, xp=None, yp=None, cmtype="linear", filter_k=100, fixed=-1, name="new cm", method="CatmulClark"):
         from .bezierbuilder import SingleBezierCurveModel, TwoBezierCurveModel, ControlPointBuilder, ControlPointModel
         if figure is None:
             figure = plt.figure()
@@ -611,6 +611,7 @@ class viscm_editor(object):
                         },
                         f, indent=4)
         print("Saved")
+
     def export_py(self, filepath):
         import textwrap
         template = textwrap.dedent('''
@@ -646,24 +647,28 @@ class viscm_editor(object):
 
 
 class BezierCMapModel(object):
-    def __init__(self, bezier_model, min_Jp, max_Jp, uniform_space, filter_k=-1, cmtype="linear"):
+    def __init__(self, bezier_model, min_Jp, max_Jp, uniform_space, filter_k=100, cmtype="linear"):
         self.bezier_model = bezier_model
         self.min_Jp = min_Jp
         self.max_Jp = max_Jp
         self.filter_k = filter_k
         self.cmtype = cmtype
         self.trigger = Trigger()
+        self.Jp_minmax_trigger = Trigger()
+        self.Jp_minmax_trigger.add_callback(self.trigger.fire)
+        self.filter_k_trigger = Trigger()
+        self.filter_k_trigger.add_callback(self.trigger.fire)
         self.uniform_to_sRGB1 = cspace_converter(uniform_space, "sRGB1")
         self.bezier_model.trigger.add_callback(self.trigger.fire)
 
     def set_Jp_minmax(self, min_Jp, max_Jp):
         self.min_Jp = min_Jp
         self.max_Jp = max_Jp
-        self.trigger.fire()
+        self.Jp_minmax_trigger.fire()
 
     def set_filter_k(self, filter_k):
         self.filter_k = filter_k
-        self.trigger.fire()
+        self.filter_k_trigger.fire()
 
     def get_Jpapbp_at_point(self, point):
         from scipy.interpolate import interp1d
@@ -676,7 +681,7 @@ class BezierCMapModel(object):
         at = np.linspace(0, 1, num)
         if self.cmtype == "diverging":
             from scipy.special import erf
-            at = 1 + 2 * np.cumsum(erf(10 ** self.filter_k * (at - 0.5))) / num
+            at = 1 + 2 * np.cumsum(erf(self.filter_k * (at - 0.5))) / num
         Jp = (self.max_Jp - self.min_Jp) * at + self.min_Jp
         return Jp, ap, bp
 
@@ -874,6 +879,7 @@ class Colormap(object):
         self.uniform_space = uniform_space
         if self.uniform_space == "buggy-CAM02-UCS":
             self.uniform_space = buggy_CAM02UCS
+
     def load(self, path):
         self.path = path
         if os.path.isfile(path):
@@ -1150,27 +1156,37 @@ class EditorWindow(QtWidgets.QMainWindow):
         mainlayout.addLayout(min_slider_layout)
 
         if viscm_editor.cmtype == "diverging":
-            # QSlider is integer-only, and we want floats between [log10(5), 3]
-            # So we scale up by 1000 and the edit_smoothness callback fixes it
-            # up.
             smoothness_slider = QtWidgets.QSlider(QtCore.Qt.Horizontal)
+            # We want the slider to vary filter_k exponentially between 5 and
+            # 1000. So it should go from [log10(5), log10(1000)]
+            # which is about [0.699, 3.0]
+            # But QSlider is integer-only, so we also scale up by 1000.
+            # smoothness_slider_moved and update_smoothness_slider also have
+            # to deal with this.
             smoothness_slider.setMinimum(699)
             smoothness_slider.setMaximum(3000)
-            smoothness_slider.setValue(1)  # Fixme
             smoothness_slider.setTickPosition(QtWidgets.QSlider.NoTicks)
-            smoothness_slider.valueChanged.connect(self.edit_smoothness)
+            smoothness_slider.valueChanged.connect(self.smoothness_slider_moved)
 
-            smoothness_slider_num = QtWidgets.QLabel(str(viscm_editor.cmap_model.filter_k))
-            smoothness_slider_num.setFixedWidth(30)
+            # maximum width
+            smoothness_slider_num = QtWidgets.QLabel("1000.00")
+            metrics = QtWidgets.QFontMetrics(smoothness_slider_num.font())
+            max_width = metrics.width("1000.00")
+            smoothness_slider_num.setFixedWidth(max_width)
+            smoothness_slider_num.setAlignment(QtCore.Qt.AlignRight)
             self.smoothness_slider_num = smoothness_slider_num
 
             smoothness_slider_layout = QtWidgets.QHBoxLayout()
-            smoothness_slider_layout.addWidget(QtWidgets.QLabel("Central Smoothing"))
+            smoothness_slider_layout.addWidget(
+                QtWidgets.QLabel("Transition sharpness"))
             smoothness_slider_layout.addWidget(smoothness_slider)
             smoothness_slider_layout.addWidget(smoothness_slider_num)
 
             mainlayout.addLayout(smoothness_slider_layout)
             self.smoothness_slider = smoothness_slider
+
+            viscm_editor.cmap_model.filter_k_trigger.add_callback(
+                self.update_smoothness_slider)
 
         self.moveAction = QtWidgets.QAction("Drag points", self)
         self.moveAction.triggered.connect(self.set_move_mode)
@@ -1217,10 +1233,16 @@ class EditorWindow(QtWidgets.QMainWindow):
         self.viscm_editor.name = name
         self.setWindowTitle("VISCM Editing : " + self.viscm_editor.name)
 
-    def edit_smoothness(self):
-        num = self.smoothness_slider.value() / 1000
+    def smoothness_slider_moved(self):
+        num = 10 ** (self.smoothness_slider.value() / 1000)
         self.smoothness_slider_num.setText(str(num))
-        self.viscm_editor._filter_k_update(num)
+        self.viscm_editor.cmap_model.set_filter_k(num)
+
+    def update_smoothness_slider(self):
+        filter_k = self.viscm_editor.cmap_model.filter_k
+        self.smoothness_slider_num.setText("{:0.2f}".format(filter_k))
+        self.smoothness_slider.setValue(
+            int(round(np.log10(filter_k) * 1000)))
 
     def swapjp(self):
         jp1, jp2 = self.min_slider.value(), self.max_slider.value()
