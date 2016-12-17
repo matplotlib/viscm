@@ -1181,28 +1181,34 @@ class EditorWindow(QtWidgets.QMainWindow):
         min_slider_layout.addWidget(self.min_slider)
         min_slider_layout.addWidget(self.min_slider_num)
 
-
-
         figure_layout = QtWidgets.QHBoxLayout()
         figure_layout.addWidget(figurecanvas)
-        if viscm_editor.cmtype == "diverging":
-            self.smoothness_slider = QtWidgets.QSlider(QtCore.Qt.Vertical)
-            self.smoothness_slider.setMinimum(0)
-            self.smoothness_slider.setMaximum(100)
-            self.smoothness_slider.setValue(viscm_editor.filter_k * 5)
-            self.smoothness_slider.setTickPosition(QtWidgets.QSlider.TicksBelow)
-            self.smoothness_slider.setTickInterval(100)
-            self.smoothness_slider.valueChanged.connect(self.edit_smoothness)
-            figure_layout.addWidget(self.smoothness_slider)
-
-
-
 
         mainlayout = QtWidgets.QVBoxLayout(self.main_widget)
         mainlayout.addLayout(figure_layout)
         mainlayout.addLayout(max_slider_layout)
         mainlayout.addLayout(min_slider_layout)
 
+        if viscm_editor.cmtype == "diverging":
+            smoothness_slider = QtWidgets.QSlider(QtCore.Qt.Horizontal)
+            smoothness_slider.setMinimum(0)
+            smoothness_slider.setMaximum(100)
+            smoothness_slider.setValue(viscm_editor.filter_k * 5)
+            smoothness_slider.setTickPosition(QtWidgets.QSlider.TicksBelow)
+            smoothness_slider.setTickInterval(100)
+            smoothness_slider.valueChanged.connect(self.edit_smoothness)
+
+            smoothness_slider_num = QtWidgets.QLabel(str(viscm_editor.filter_k))
+            smoothness_slider_num.setFixedWidth(30)
+            self.smoothness_slider_num = smoothness_slider_num
+
+            smoothness_slider_layout = QtWidgets.QHBoxLayout()
+            smoothness_slider_layout.addWidget(QtWidgets.QLabel("Central Smoothing"))
+            smoothness_slider_layout.addWidget(smoothness_slider)
+            smoothness_slider_layout.addWidget(smoothness_slider_num)
+
+            mainlayout.addLayout(smoothness_slider_layout)
+            self.smoothness_slider = smoothness_slider
 
         self.moveAction = QtWidgets.QAction("Drag points", self)
         self.moveAction.triggered.connect(self.set_move_mode)
@@ -1251,6 +1257,7 @@ class EditorWindow(QtWidgets.QMainWindow):
 
     def edit_smoothness(self):
         num = self.smoothness_slider.value() / 5;
+        self.smoothness_slider_num.setText(str(num))
         self.viscm_editor._filter_k_update(num)
 
     def swapjp(self):
@@ -1280,6 +1287,7 @@ class EditorWindow(QtWidgets.QMainWindow):
         self.addAction.setChecked(False)
         self.moveAction.setChecked(False)
         self.viscm_editor.bezier_builder.mode = "remove"
+
     def export(self):
         fileName = QtWidgets.QFileDialog.getSaveFileName(
             caption="Export file",
