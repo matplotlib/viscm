@@ -1013,8 +1013,18 @@ def main(argv):
     figureCanvas.updateGeometry()
 
     mainwindow.resize(800, 600)
-
     mainwindow.show()
+
+    # PyQt messes up signal handling by default. Python signal handlers (e.g.,
+    # the default handler for SIGINT that raises KeyboardInterrupt) can only
+    # run when we enter the Python interpreter, which doesn't happen while
+    # idling in the Qt mainloop. (Unless we register a timer to poll
+    # explicitly.) So here we unregister Python's default signal handler and
+    # replace it with... the *operating system's* default signal handler, so
+    # instead of a KeyboardInterrupt our process just exits.
+    import signal
+    signal.signal(signal.SIGINT, signal.SIG_DFL)
+
     app.exec_()
 
 def about():
