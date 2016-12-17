@@ -502,7 +502,6 @@ class viscm_editor(object):
         axes = _viscm_editor_axes(self.figure)
         self.min_Jp = min_Jp
         self.max_Jp = max_Jp
-        self.filter_k = filter_k
         self.fixed = fixed
         if self.cmtype in ["diverging", "diverging-continuous"] and xp is None:
             self.fixed = 4;
@@ -545,7 +544,7 @@ class viscm_editor(object):
                                           self.max_Jp,
                                           uniform_space,
                                           cmtype=cmtype,    
-                                          filter_k=self.filter_k)
+                                          filter_k=filter_k)
         
 
         self.highlight_point_model = HighlightPointModel(self.cmap_model, startJp)
@@ -596,7 +595,7 @@ class viscm_editor(object):
                           "xp" : xp,
                           "yp" : yp,
                           "fixed" : fixed,
-                          "filter_k" : self.filter_k,
+                          "filter_k" : self.cmap_model.filter_k,
                           "cmtype" : self.cmtype,
                           "uniform_colorspace" : self._uniform_space,
                           "spline_method" : self.method
@@ -643,9 +642,7 @@ class viscm_editor(object):
             self.cmap_model.set_Jp_minmax(self.min_Jp, self.max_Jp)
 
     def _filter_k_update(self, filter_k):
-        if filter_k >= 0:
-            self.filter_k = filter_k
-            self.cmap_model.set_filter_k(filter_k)
+        self.cmap_model.set_filter_k(filter_k)
 
 
 class BezierCMapModel(object):
@@ -679,7 +676,8 @@ class BezierCMapModel(object):
         at = np.linspace(0, 1, num)
         if self.cmtype == "diverging":
             from scipy.special import erf
-            at = 2 * np.cumsum(erf(self.filter_k * (at - 0.5))) / num + 1
+            print(self.filter_k)
+            at = 1 + 2 * np.cumsum(erf(10 ** self.filter_k * (at - 0.5))) / num
         Jp = (self.max_Jp - self.min_Jp) * at + self.min_Jp
         return Jp, ap, bp
 
@@ -1140,11 +1138,13 @@ class EditorWindow(QtWidgets.QMainWindow):
         figure_layout.addWidget(figurecanvas)
         if viscm_editor.cmtype == "diverging":
             self.smoothness_slider = QtWidgets.QSlider(QtCore.Qt.Vertical)
-            self.smoothness_slider.setMinimum(0)
-            self.smoothness_slider.setMaximum(100)
-            self.smoothness_slider.setValue(viscm_editor.filter_k * 5)
-            self.smoothness_slider.setTickPosition(QtWidgets.QSlider.TicksBelow)
-            self.smoothness_slider.setTickInterval(100)
+            # QSlider is integer-only, and we want floats between [log10(5), 3]
+            # So we scale up by 1000 and the edit_smoothness callback fixes it
+            # up.
+            self.smoothness_slider.setMinimum(699)
+            self.smoothness_slider.setMaximum(3000)
+            self.smoothness_slider.setValue(viscm_editor.cmap_model.filter_k * 1000)
+            self.smoothness_slider.setTickPosition(QtWidgets.QSlider.NoTicks)
             self.smoothness_slider.valueChanged.connect(self.edit_smoothness)
             figure_layout.addWidget(self.smoothness_slider)
 
@@ -1203,7 +1203,7 @@ class EditorWindow(QtWidgets.QMainWindow):
         self.setWindowTitle("VISCM Editing : " + self.viscm_editor.name)
 
     def edit_smoothness(self):
-        num = self.smoothness_slider.value() / 5;
+        num = self.smoothness_slider.value() / 1000
         self.viscm_editor._filter_k_update(num)
 
     def swapjp(self):
