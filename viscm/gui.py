@@ -17,6 +17,7 @@ import numpy as np
 # use a Qt backend
 from matplotlib.backends.qt_compat import QtWidgets, QtCore
 from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
+#from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas5
 
 import matplotlib
 import matplotlib.pyplot as plt
@@ -1049,10 +1050,9 @@ def main(argv):
     if args.quit:
         sys.exit()
 
-    FigureCanvas.setSizePolicy(figureCanvas,
-                               QtWidgets.QSizePolicy.Expanding,
+    figureCanvas.setSizePolicy(QtWidgets.QSizePolicy.Expanding,
                                QtWidgets.QSizePolicy.Expanding)
-    FigureCanvas.updateGeometry(figureCanvas)
+    figureCanvas.updateGeometry()
 
     mainwindow.resize(800, 600)
 
@@ -1285,10 +1285,9 @@ class EditorWindow(QtWidgets.QMainWindow):
         gamut_figure = self.viscm_editor.plot_3d_gamut()
         figurecanvas = FigureCanvas(gamut_figure)
 
-        FigureCanvas.setSizePolicy(figurecanvas,
-                                   QtWidgets.QSizePolicy.Expanding,
+        figurecanvas.setSizePolicy(QtWidgets.QSizePolicy.Expanding,
                                    QtWidgets.QSizePolicy.Expanding)
-        FigureCanvas.updateGeometry(figurecanvas)
+        figurecanvas.updateGeometry()
 
         gamut_window = GamutWindow(figurecanvas, gamut_figure, parent=self)
         gamut_window.resize(1000, 600)
@@ -1313,10 +1312,9 @@ class EditorWindow(QtWidgets.QMainWindow):
         cm = self.viscm_editor.show_viscm()
         v = viscm(cm, name=self.viscm_editor.name, figure=newfig)
 
-        FigureCanvas.setSizePolicy(newcanvas,
-                                   QtWidgets.QSizePolicy.Expanding,
-                                   QtWidgets.QSizePolicy.Expanding)
-        FigureCanvas.updateGeometry(newcanvas)
+        newcanvas.setSizePolicy(QtWidgets.QSizePolicy.Expanding,
+                                QtWidgets.QSizePolicy.Expanding)
+        newcanvas.updateGeometry()
 
         newwindow = ViewerWindow(newcanvas, v, self.viscm_editor.name, parent=self)
         newwindow.resize(800, 600)
