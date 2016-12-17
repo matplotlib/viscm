@@ -174,11 +174,29 @@ def _vis_axes(fig):
     return axes
 
 
+def lookup_colormap_by_name(name):
+    try:
+        return plt.get_cmap(name)
+    except ValueError:
+        pass
+    # Try expanding a setuptools-style entrypoint:
+    #   foo.bar:baz.quux
+    #   -> import foo.bar; return foo.bar.baz.quux
+    if ":" in name:
+        module_name, object_name = name.split(":", 1)
+        object_path = object_name.split(".")
+        import importlib
+        cm = importlib.import_module(module_name)
+        for entry in object_path:
+            cm = getattr(cm, entry)
+        return cm
+    raise ValueError("Can't find colormap {!r}".format(name))
+
 class viscm(object):
     def __init__(self, cm, figure=None, uniform_space="CAM02-UCS",
                  name=None, N=256, N_dots=50, show_gamut=False):
         if isinstance(cm, str):
-            cm = plt.get_cmap(cm)
+            cm = lookup_colormap_by_name(cm)
         if name is None:
             name = cm.name
         if figure == None:
@@ -926,7 +944,7 @@ class Colormap(object):
                 sys.exit("Unsupported filetype")
         else:
             self.can_edit = False
-            self.cmap = plt.get_cmap(path)
+            self.cmap = lookup_colormap_by_name(path)
             self.name = path
         
 
