@@ -57,7 +57,7 @@ class ControlPointModel(object):
     def add_point(self, i, new_x, new_y):
         self._xp.insert(i, new_x)
         self._yp.insert(i, new_y)
-        if self._fixed is not None and i < self._fixed:
+        if self._fixed is not None and i <= self._fixed:
             self._fixed += 1
         self.trigger.fire()
 
