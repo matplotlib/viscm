@@ -15,7 +15,7 @@ import numpy as np
 #matplotlib.rcParams['backend'] = "QT4AGG"
 # Do this first before any other matplotlib imports, to force matplotlib to
 # use a Qt backend
-from matplotlib.backends.qt_compat import QtWidgets, QtCore
+from matplotlib.backends.qt_compat import QtWidgets, QtCore, QtGui
 from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas4
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas5
 
@@ -1189,7 +1189,7 @@ class EditorWindow(QtWidgets.QMainWindow):
 
             # maximum width
             smoothness_slider_num = QtWidgets.QLabel("1000.00")
-            metrics = QtWidgets.QFontMetrics(smoothness_slider_num.font())
+            metrics = QtGui.QFontMetrics(smoothness_slider_num.font())
             max_width = metrics.width("1000.00")
             smoothness_slider_num.setFixedWidth(max_width)
             smoothness_slider_num.setAlignment(QtCore.Qt.AlignRight)
