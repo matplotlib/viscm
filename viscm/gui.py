@@ -845,7 +845,7 @@ class GamutViewer2D(object):
         low, high = self.bgcolor_ranges[self.bg]
         if not (low <= Jp <= high):
             self.bg = self.bg_opposites[self.bg]
-            self.ax.set_axis_bgcolor(self.bgcolors[self.bg])
+            self.ax.set_facecolor(self.bgcolors[self.bg])
         sRGB = sRGB_gamut_Jp_slice(Jp, self.uniform_space,
                                    self.ap_lim, self.bp_lim)
         self.image.set_data(sRGB)
