@@ -832,7 +832,7 @@ class GamutViewer2D(object):
         self.bgcolor_ranges = {"light": (0, 60), "dark": (40, 100)}
         self.bg_opposites = {"light": "dark", "dark": "light"}
         self.bg = "light"
-        self.ax.set_axis_bgcolor(self.bgcolors[self.bg])
+        self.ax.set_facecolor(self.bgcolors[self.bg])
 
         self.image = self.ax.imshow([[[0, 0, 0]]], aspect="equal",
                                     extent=ap_lim + bp_lim,
