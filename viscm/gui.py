@@ -1017,8 +1017,8 @@ def main(argv):
         v = viscm(cm.cmap, name=cm.name, figure=fig, uniform_space=cm.uniform_space)
         mainwindow = ViewerWindow(figureCanvas, v, cm.name)
         if args.save is not None:
-            v.fig.set_size_inches(20, 12)
-            v.fig.savefig(args.save)
+            v.figure.set_size_inches(20, 12)
+            v.figure.savefig(args.save)
     elif args.action == "edit":
         if not cm.can_edit:
             sys.exit("Sorry, I don't know how to edit the specified colormap")
@@ -1305,9 +1305,10 @@ class EditorWindow(QtWidgets.QMainWindow):
         self.fileQuit()
 
     def save(self):
-        fileName = QtWidgets.QFileDialog.getSaveFileName(caption="Save file",
-                                                     directory=self.viscm_editor.name + ".jscm",
-                                                     filter="JSCM Files (*.jscm)")
+        fileName = QtWidgets.QFileDialog.getSaveFileName(
+            caption="Save file",
+            directory=self.viscm_editor.name + ".jscm",
+            filter="JSCM Files (*.jscm)")
         self.viscm_editor.save_colormap(fileName)
 
     def loadviewer(self):
