@@ -15,7 +15,7 @@ import numpy as np
 #matplotlib.rcParams['backend'] = "QT4AGG"
 # Do this first before any other matplotlib imports, to force matplotlib to
 # use a Qt backend
-from matplotlib.backends.qt_compat import QtWidgets, QtCore, QtGui
+from matplotlib.backends.qt_compat import QtWidgets, QtCore, QtGui, _getSaveFileName
 from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas4
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas5
 
@@ -1103,7 +1103,7 @@ class ViewerWindow(QtWidgets.QMainWindow):
         self.fileQuit()
 
     def save(self):
-        fileName = QtWidgets.QFileDialog.getSaveFileName(
+        fileName, _ = _getSaveFileName(
             caption="Save file",
             directory=self.cmapname + ".png",
             filter="Image Files (*.png *.jpg *.bmp)")
@@ -1292,7 +1292,7 @@ class EditorWindow(QtWidgets.QMainWindow):
         self.viscm_editor.bezier_builder.mode = "remove"
 
     def export(self):
-        fileName = QtWidgets.QFileDialog.getSaveFileName(
+        fileName, _ = _getSaveFileName(
             caption="Export file",
             directory=self.viscm_editor.name + ".py",
             filter=".py (*.py)")
@@ -1305,7 +1305,7 @@ class EditorWindow(QtWidgets.QMainWindow):
         self.fileQuit()
 
     def save(self):
-        fileName = QtWidgets.QFileDialog.getSaveFileName(
+        fileName, _ = _getSaveFileName(
             caption="Save file",
             directory=self.viscm_editor.name + ".jscm",
             filter="JSCM Files (*.jscm)")
