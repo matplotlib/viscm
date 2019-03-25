@@ -1,4 +1,4 @@
-include LICENSE.txt README.rst
+include LICENSE README.rst
 recursive-include viscm/examples *
 recursive-include doc *
 prune doc/_build
