@@ -1107,7 +1107,8 @@ class ViewerWindow(QtWidgets.QMainWindow):
             caption="Save file",
             directory=self.cmapname + ".png",
             filter="Image Files (*.png *.jpg *.bmp)")
-        self.viscm.save_figure(fileName)
+        if fileName:
+            self.viscm.save_figure(fileName)
 
 
 class EditorWindow(QtWidgets.QMainWindow):
@@ -1296,7 +1297,8 @@ class EditorWindow(QtWidgets.QMainWindow):
             caption="Export file",
             directory=self.viscm_editor.name + ".py",
             filter=".py (*.py)")
-        self.viscm_editor.export_py(fileName)
+        if fileName:
+            self.viscm_editor.export_py(fileName)
 
     def fileQuit(self):
         self.close()
@@ -1309,7 +1311,8 @@ class EditorWindow(QtWidgets.QMainWindow):
             caption="Save file",
             directory=self.viscm_editor.name + ".jscm",
             filter="JSCM Files (*.jscm)")
-        self.viscm_editor.save_colormap(fileName)
+        if fileName:
+            self.viscm_editor.save_colormap(fileName)
 
     def loadviewer(self):
         newfig = plt.figure()
