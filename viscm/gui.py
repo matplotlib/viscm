@@ -18,9 +18,12 @@ import numpy as np
 from matplotlib.backends.qt_compat import QtWidgets, QtCore, QtGui, _getSaveFileName
 
 try:
-    from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-except Exception:
-    from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
+    from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
+except ImportError:
+    try:
+        from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+    except ImportError:
+        from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
 
 import matplotlib
 import matplotlib.pyplot as plt
