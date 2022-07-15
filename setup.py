@@ -27,6 +27,6 @@ setup(
         "Programming Language :: Python :: 3",
         ],
     packages=find_packages(),
-    install_requires=["numpy", "matplotlib", "colorspacious"],
+    install_requires=["numpy", "matplotlib", "colorspacious", "scipy"],
     package_data={'viscm': ['examples/*']},
 )
