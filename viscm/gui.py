@@ -1207,25 +1207,30 @@ class EditorWindow(QtWidgets.QMainWindow):
 
             viscm_editor.cmap_model.filter_k_trigger.add_callback(
                 self.update_smoothness_slider)
+            
+        try:
+            QAction = QtWidgets.QAction
+        except AttributeError:
+            QAction = QtGui.QAction
 
-        self.moveAction = QtWidgets.QAction("Drag points", self)
+        self.moveAction = QAction("Drag points", self)
         self.moveAction.triggered.connect(self.set_move_mode)
         self.moveAction.setCheckable(True)
 
-        self.addAction = QtWidgets.QAction("Add points", self)
+        self.addAction = QAction("Add points", self)
         self.addAction.triggered.connect(self.set_add_mode)
         self.addAction.setCheckable(True)
 
-        self.removeAction = QtWidgets.QAction("Remove points", self)
+        self.removeAction = QAction("Remove points", self)
         self.removeAction.triggered.connect(self.set_remove_mode)
         self.removeAction.setCheckable(True)
 
-        self.swapAction = QtWidgets.QAction("Flip brightness", self)
+        self.swapAction = QAction("Flip brightness", self)
         self.swapAction.triggered.connect(self.swapjp)
-        renameAction = QtWidgets.QAction("Rename colormap", self)
+        renameAction = QAction("Rename colormap", self)
         renameAction.triggered.connect(self.rename)
 
-        saveAction = QtWidgets.QAction('Save', self)
+        saveAction = QAction('Save', self)
         saveAction.triggered.connect(self.save)
 
 
