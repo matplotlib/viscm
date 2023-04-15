@@ -42,6 +42,10 @@ from matplotlib.lines import Line2D
 from matplotlib.backends.qt_compat import QtGui, QtCore
 from .minimvc import Trigger
 
+
+Qt = QtCore.Qt
+
+
 class ControlPointModel(object):
     def __init__(self, xp, yp, fixed=None):
         # fixed is either None (if no point is fixed) or and index of a fixed
@@ -113,12 +117,13 @@ class ControlPointBuilder(object):
         if event.inaxes != self.ax:
             return
         res, ind = self.control_polygon.contains(event)
-        if res and modkey == QtCore.Qt.NoModifier:
+        if res and modkey == Qt.KeyboardModifier.NoModifier:
             self._index = ind["ind"][0]
-        if res and (modkey == QtCore.Qt.ControlModifier or self.mode == "remove"):
+        if res and (modkey == Qt.KeyboardModifier.ControlModifier
+                    or self.mode == "remove"):
             # Control-click deletes
             self.control_point_model.remove_point(ind["ind"][0])
-        if (modkey == QtCore.Qt.ShiftModifier or self.mode == "add"):
+        if (modkey == Qt.KeyboardModifier.ShiftModifier or self.mode == "add"):
 
             # Adding a new point. Find the two closest points and insert it in
             # between them.

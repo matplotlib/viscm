@@ -27,6 +27,7 @@ Dependencies:
   * `colorspacious <https://pypi.python.org/pypi/colorspacious>`_
   * Matplotlib
   * NumPy
+  * one of PyQt6, PySide6, PyQt5 (>=5.13.1), or PySide2
 
 License:
   MIT, see LICENSE.txt for details.
