@@ -3,6 +3,5 @@
 # Copyright (C) 2015 Stefan van der Walt <stefanv@berkeley.edu>
 # See file LICENSE.txt for license information.
 
-import sys
-from .gui import main
-main(sys.argv[1:])
+from .cli import cli
+cli()
