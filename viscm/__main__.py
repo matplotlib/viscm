@@ -3,5 +3,5 @@
 # Copyright (C) 2015 Stefan van der Walt <stefanv@berkeley.edu>
 # See file LICENSE.txt for license information.
 
-from .gui import main
-main()
+from .cli import cli
+cli()

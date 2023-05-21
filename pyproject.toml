@@ -32,7 +32,7 @@ text = "MIT"
 files = ["LICENSE"]
 
 [project.scripts]
-viscm = "viscm.gui:main"
+viscm = "viscm.cli:cli"
 
 
 [build-system]
