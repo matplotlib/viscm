@@ -1225,7 +1225,3 @@ class EditorWindow(QtWidgets.QMainWindow):
         newwindow.resize(800, 600)
 
         newwindow.show()
-
-
-if __name__ == "__main__":
-    main()

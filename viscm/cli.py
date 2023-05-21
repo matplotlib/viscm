@@ -2,22 +2,12 @@ import sys
 
 import matplotlib.pyplot as plt
 
-from . import gui
+from viscm import gui
 
 
 def cli():
     import argparse
     argv = sys.argv[1:]
-
-    # Usage:
-    #   python -m viscm
-    #   python -m viscm edit
-    #   python -m viscm edit <file.py>
-    #      (file.py must define some appropriate globals)
-    #   python -m viscm view <file.py>
-    #      (file.py must define a global named "test_cm")
-    #   python -m viscm view "matplotlib builtin colormap"
-    #   python -m viscm view --save=foo.png ...
 
     parser = argparse.ArgumentParser(
         prog="python -m viscm",
@@ -30,8 +20,9 @@ def cli():
                         nargs="?")
     parser.add_argument("colormap", metavar="COLORMAP",
                         default=None,
-                        help="A .json file saved from the editor, or "
-                             "the name of a matplotlib builtin colormap",
+                        help="A .json file saved from the editor, a .py file containing"
+                        " a global named `test_cm`, or the name of a matplotlib"
+                        " builtin colormap",
                         nargs="?")
     parser.add_argument("--uniform-space", metavar="SPACE",
                         default="CAM02-UCS",
@@ -109,3 +100,7 @@ def cli():
     signal.signal(signal.SIGINT, signal.SIG_DFL)
 
     app.exec_()
+
+
+if __name__ == "__main__":
+    cli()
