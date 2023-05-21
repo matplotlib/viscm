@@ -4,4 +4,5 @@
 # See file LICENSE.txt for license information.
 
 from .cli import cli
+
 cli()
