@@ -948,8 +948,9 @@ class Colormap(object):
             self.name = path
         
 
-def main(argv):
+def main():
     import argparse
+    argv = sys.argv[1:]
 
     # Usage:
     #   python -m viscm
@@ -1331,4 +1332,4 @@ class EditorWindow(QtWidgets.QMainWindow):
 
 
 if __name__ == "__main__":
-    main(sys.argv[1:])
+    main()
