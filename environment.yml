@@ -3,10 +3,15 @@ channels:
   - "conda-forge"
   - "nodefaults"
 dependencies:
+  # Runtime
   - "python ~=3.11"
   - "numpy ~=1.24"
   - "matplotlib ~=3.7"
   - "colorspacious ~=1.1"
   - "scipy ~=1.10"
+
+  # Development
+  - "pre-commit"
+
   - pip:
     - "build ~=0.10"
