@@ -14,7 +14,8 @@ resulting visualizations and use the editor tool `on this website
 <https://bids.github.io/colormap/>`_.
 
 Downloads:
-  https://pypi.python.org/pypi/viscm/
+  * https://pypi.python.org/pypi/viscm/
+  * https://anaconda.org/conda-forge/viscm/
 
 Code and bug tracker:
   https://github.com/matplotlib/viscm
@@ -23,16 +24,17 @@ Contact:
   Nathaniel J. Smith <njs@pobox.com> and Stéfan van der Walt <stefanv@berkeley.edu>
 
 Dependencies:
-  * Python 2.6+, or 3.3+
+  * Python 3.8+
   * `colorspacious <https://pypi.python.org/pypi/colorspacious>`_
   * Matplotlib
   * NumPy
 
 License:
-  MIT, see LICENSE.txt for details.
+  MIT, see `LICENSE <LICENSE>`__ for details.
 
 Reproducing viridis
 -------------------
+
 Load [viridis AKA option_d.py](https://github.com/BIDS/colormap/) using:
 
 ```
