@@ -4,7 +4,7 @@ import numpy as np
 from scipy.special import binom
 
 
-def Bernstein(n, k):
+def bernstein(n, k):
     """Bernstein polynomial."""
     coeff = binom(n, k)
 
@@ -14,7 +14,7 @@ def Bernstein(n, k):
     return _bpoly
 
 
-def Bezier(points, at):
+def bezier(points, at):
     """Build Bézier curve from points."""
     warnings.warn(
         message="Deprecated. CatmulClark builds nicer splines.",
@@ -24,14 +24,14 @@ def Bezier(points, at):
 
     at = np.asarray(at)
     at_flat = at.ravel()
-    N = len(points)
+    n = len(points)
     curve = np.zeros((at_flat.shape[0], 2))
-    for ii in range(N):
-        curve += np.outer(Bernstein(N - 1, ii)(at_flat), points[ii])
+    for ii in range(n):
+        curve += np.outer(bernstein(n - 1, ii)(at_flat), points[ii])
     return curve.reshape((*at.shape, 2))
 
 
-def CatmulClark(points, at):
+def catmul_clark(points, at):
     points = np.asarray(points)
 
     while len(points) < len(at):
@@ -48,6 +48,6 @@ def CatmulClark(points, at):
 
 
 curve_method = {
-    "Bezier": Bezier,
-    "CatmulClark": CatmulClark,
+    "Bezier": bezier,
+    "CatmulClark": catmul_clark,
 }

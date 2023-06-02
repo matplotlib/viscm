@@ -92,9 +92,9 @@ def cli():
         if cm is None:
             sys.exit("Please specify a colormap")
         fig = plt.figure()
-        figureCanvas = gui.FigureCanvas(fig)
+        figure_canvas = gui.FigureCanvas(fig)
         v = gui.viscm(cm.cmap, name=cm.name, figure=fig, uniform_space=cm.uniform_space)
-        mainwindow = gui.ViewerWindow(figureCanvas, v, cm.name)
+        mainwindow = gui.ViewerWindow(figure_canvas, v, cm.name)
         if args.save is not None:
             v.figure.set_size_inches(20, 12)
             v.figure.savefig(args.save)
@@ -103,7 +103,7 @@ def cli():
             sys.exit("Sorry, I don't know how to edit the specified colormap")
         # Hold a reference so it doesn't get GC'ed
         fig = plt.figure()
-        figureCanvas = gui.FigureCanvas(fig)
+        figure_canvas = gui.FigureCanvas(fig)
         v = gui.viscm_editor(
             figure=fig,
             uniform_space=cm.uniform_space,
@@ -111,17 +111,17 @@ def cli():
             method=cm.method,
             **cm.params,
         )
-        mainwindow = gui.EditorWindow(figureCanvas, v)
+        mainwindow = gui.EditorWindow(figure_canvas, v)
     else:
         raise RuntimeError("can't happen")
 
     if args.quit:
         sys.exit()
 
-    figureCanvas.setSizePolicy(
+    figure_canvas.setSizePolicy(
         gui.QtWidgets.QSizePolicy.Expanding, gui.QtWidgets.QSizePolicy.Expanding
     )
-    figureCanvas.updateGeometry()
+    figure_canvas.updateGeometry()
 
     mainwindow.resize(800, 600)
     mainwindow.show()
