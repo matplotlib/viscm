@@ -12,6 +12,10 @@ dependencies:
 
   # Development
   - "pre-commit"
+  - "pytest"
+  - "pytest-cov"
+  - "pytest-qt"
+  - "pytest-xvfb"
 
   - pip:
     - "build ~=0.10"

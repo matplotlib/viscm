@@ -1,57 +1,80 @@
-import numpy as np
+import json
 
-from viscm.bezierbuilder import json
+import pytest
+
 from viscm.gui import Colormap, viscm_editor
 
-cms = {
-    "viscm/examples/sample_linear.jscm",
-    "viscm/examples/sample_diverging.jscm",
-    "viscm/examples/sample_diverging_continuous.jscm",
-}
+
+def approxeq(x, y, *, err=0.0001):
+    return abs(y - x) < err
 
 
-def test_editor_loads_native():
-    for k in cms:
-        with open(k) as f:
-            data = json.loads(f.read())
-        cm = Colormap(None, "CatmulClark", "CAM02-UCS")
-        cm.load(k)
-        viscm = viscm_editor(
-            uniform_space=cm.uniform_space,
-            cmtype=cm.cmtype,
-            method=cm.method,
-            **cm.params,
-        )
-        assert viscm.name == data["name"]
+@pytest.mark.parametrize(
+    "colormap_file",
+    [
+        "viscm/examples/sample_linear.jscm",
+        "viscm/examples/sample_diverging.jscm",
+        "viscm/examples/sample_diverging_continuous.jscm",
+    ],
+)
+def test_editor_loads_native(colormap_file):
+    with open(colormap_file) as f:
+        data = json.loads(f.read())
+    cm = Colormap(None, "CatmulClark", "CAM02-UCS")
+    cm.load(colormap_file)
+    viscm = viscm_editor(
+        uniform_space=cm.uniform_space,
+        cmtype=cm.cmtype,
+        method=cm.method,
+        **cm.params,
+    )
+    assert viscm.name == data["name"]
 
-        extensions = data["extensions"]["https://matplotlib.org/viscm"]
-        xp, yp, fixed = viscm.control_point_model.get_control_points()
+    extensions = data["extensions"]["https://matplotlib.org/viscm"]
+    xp, yp, fixed = viscm.control_point_model.get_control_points()
 
-        assert extensions["fixed"] == fixed
-        assert len(extensions["xp"]) == len(xp)
-        assert len(extensions["yp"]) == len(yp)
-        assert len(xp) == len(yp)
-        for i in range(len(xp)):
-            assert extensions["xp"][i] == xp[i]
-            assert extensions["yp"][i] == yp[i]
-        assert extensions["min_Jp"] == viscm.min_Jp
-        assert extensions["max_Jp"] == viscm.max_Jp
-        assert extensions["filter_k"] == viscm.filter_k
-        assert extensions["cmtype"] == viscm.cmtype
+    assert extensions["fixed"] == fixed
+    assert len(extensions["xp"]) == len(xp)
+    assert len(extensions["yp"]) == len(yp)
+    assert len(xp) == len(yp)
+    for i in range(len(xp)):
+        assert extensions["xp"][i] == xp[i]
+        assert extensions["yp"][i] == yp[i]
+    assert extensions["min_Jp"] == viscm.min_Jp
+    assert extensions["max_Jp"] == viscm.max_Jp
+    assert extensions["filter_k"] == viscm.cmap_model.filter_k
+    assert extensions["cmtype"] == viscm.cmtype
 
-        colors = data["colors"]
-        colors = [
-            [int(c[i : i + 2], 16) / 256 for i in range(0, 6, 2)]
-            for c in [colors[i : i + 6] for i in range(0, len(colors), 6)]
-        ]
-        editor_colors = viscm.cmap_model.get_sRGB(num=256)[0].tolist()
-        for i in range(len(colors)):
-            for z in range(3):
-                assert colors[i][z] == np.rint(editor_colors[i][z] / 256)
+    # Decode hexadecimal-encoded colormap string (grouped in units of 3 pairs of
+    # two-character (0-255) values) to 3-tuples of floats (0-1).
+    colors_hex = data["colors"]
+    colors_hex = [colors_hex[i : i + 6] for i in range(0, len(colors_hex), 6)]
+    colors = [
+        # TODO: Should we divide by 255 here instead of 256? The tests pass with a
+        # lower value for `err` if we do.
+        [int(c[i : i + 2], 16) / 256 for i in range(0, len(c), 2)]
+        for c in colors_hex
+    ]
+
+    editor_colors = viscm.cmap_model.get_sRGB(num=256)[0].tolist()
+
+    for i in range(len(colors)):
+        for z in range(3):
+            assert approxeq(colors[i][z], editor_colors[i][z], err=0.01)
 
 
 # import matplotlib as mpl
-# from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
+# try:
+#     from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
+# except ImportError:
+#     try:
+#         from matplotlib.backends.backend_qt5agg import (
+#             FigureCanvasQTAgg as FigureCanvas
+#         )
+#     except ImportError:
+#         from matplotlib.backends.backend_qt4agg import (
+#             FigureCanvasQTAgg as FigureCanvas
+#         )
 # from matplotlib.backends.qt_compat import QtCore, QtGui
 #
 # def test_editor_add_point():
@@ -144,7 +167,3 @@ def test_editor_loads_native():
 
 #     print(linear.control_point_model.get_control_points())
 #     # print(linear.cmap_model.get_Jpapbp(3))
-
-
-def approxeq(x, y, err=0.0001):
-    return abs(y - x) < err
