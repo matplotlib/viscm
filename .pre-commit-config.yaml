@@ -1,4 +1,13 @@
 repos:
+  - repo: "https://github.com/pre-commit/pre-commit-hooks"
+    rev: "v4.4.0"
+    hooks:
+      - id: "check-added-large-files"
+      - id: "check-vcs-permalinks"
+      - id: "no-commit-to-branch"
+      # TODO: Apply this fixer and add an entry to .git-blame-ignore-revs
+      # - id: "end-of-file-fixer"
+
   - repo: "https://github.com/charliermarsh/ruff-pre-commit"
     rev: "v0.0.269"
     hooks:
