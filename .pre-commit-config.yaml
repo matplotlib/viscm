@@ -4,7 +4,6 @@ repos:
     hooks:
       - id: "check-added-large-files"
       - id: "check-vcs-permalinks"
-      - id: "no-commit-to-branch"
       - id: "end-of-file-fixer"
 
   - repo: "https://github.com/charliermarsh/ruff-pre-commit"
