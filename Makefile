@@ -1,7 +1,7 @@
 .PHONY: test
 test:
 	python -m pytest --version
-	python -m pytest test/
+	python -m pytest -v test/
 
 
 .PHONY: lint 

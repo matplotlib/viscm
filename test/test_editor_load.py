@@ -18,52 +18,74 @@ def approxeq(x, y, *, err=0.0001):
         "viscm/examples/sample_diverging_continuous.jscm",
     ],
 )
-@pytest.mark.xfail(reason="Test very old; intent unclear")
-def test_editor_loads_native(colormap_file):
-    with open(colormap_file) as f:
-        data = json.loads(f.read())
-    cm = Colormap(None, "CatmulClark", "CAM02-UCS")
-    cm.load(colormap_file)
-    viscm = viscm_editor(
-        uniform_space=cm.uniform_space,
-        cmtype=cm.cmtype,
-        method=cm.method,
-        **cm.params,
-    )
-    assert viscm.name == data["name"]
+class TestEditorLoad:
+    def expected(self, colormap_file):
+        with open(colormap_file) as f:
+            exp = json.loads(f.read())
+        return exp
 
-    extensions = data["extensions"]["https://matplotlib.org/viscm"]
-    xp, yp, fixed = viscm.control_point_model.get_control_points()
+    def actual(self, colormap_file):
+        cm = Colormap(None, "CatmulClark", "CAM02-UCS")
+        cm.load(colormap_file)
+        act = viscm_editor(
+            uniform_space=cm.uniform_space,
+            cmtype=cm.cmtype,
+            method=cm.method,
+            **cm.params,
+        )
+        return act
 
-    assert extensions["fixed"] == fixed
-    assert len(extensions["xp"]) == len(xp)
-    assert len(extensions["yp"]) == len(yp)
-    assert len(xp) == len(yp)
-    for i in range(len(xp)):
-        assert extensions["xp"][i] == xp[i]
-        assert extensions["yp"][i] == yp[i]
-    assert extensions["min_Jp"] == viscm.min_Jp
-    assert extensions["max_Jp"] == viscm.max_Jp
-    assert extensions["filter_k"] == viscm.cmap_model.filter_k
-    assert extensions["cmtype"] == viscm.cmtype
+    def test_editor_loads_jscm_parameters_match(self, colormap_file):
+        expected = self.expected(colormap_file)
+        actual = self.actual(colormap_file)
 
-    # Decode hexadecimal-encoded colormap string (grouped in units of 3 pairs of
-    # two-character (0-255) values) to 3-tuples of floats (0-1).
-    colors_hex = data["colors"]
-    colors_hex = [colors_hex[i : i + 6] for i in range(0, len(colors_hex), 6)]
-    colors = [
-        [int(c[i : i + 2], 16) / 255 for i in range(0, len(c), 2)] for c in colors_hex
-    ]
+        assert actual.name == expected["name"]
 
-    editor_colors = viscm.cmap_model.get_sRGB(num=256)[0].tolist()
+        extensions = expected["extensions"]["https://matplotlib.org/viscm"]
+        xp, yp, fixed = actual.control_point_model.get_control_points()
 
-    for i in range(len(colors)):
-        for z in range(3):
-            # FIXME: The right-hand side of this comparison will always be 0.
-            # https://github.com/matplotlib/viscm/pull/66#discussion_r1213818015
-            assert colors[i][z] == np.rint(editor_colors[i][z] / 256)
-            # Should the test look more like this?
-            # assert approxeq(colors[i][z], editor_colors[i][z], err=0.005)
+        assert extensions["fixed"] == fixed
+        assert len(extensions["xp"]) == len(xp)
+        assert len(extensions["yp"]) == len(yp)
+        assert len(xp) == len(yp)
+        for i in range(len(xp)):
+            assert extensions["xp"][i] == xp[i]
+            assert extensions["yp"][i] == yp[i]
+        assert extensions["min_Jp"] == actual.min_Jp
+        assert extensions["max_Jp"] == actual.max_Jp
+        assert extensions["filter_k"] == actual.cmap_model.filter_k
+        assert extensions["cmtype"] == actual.cmtype
+
+    @pytest.mark.xfail(reason="Test very old; intent unclear")
+    def test_editor_loads_jscm_data_match(self, colormap_file):
+        expected = self.expected(colormap_file)
+        actual = self.actual(colormap_file)
+
+        # Decode hexadecimal-encoded colormap string (grouped in units of 3 pairs of
+        # two-character [00-ff / 0-255] values) to 3-tuples of floats (0-1).
+        expected_colors_hex = expected["colors"]
+        expected_colors_hex = [
+            expected_colors_hex[i : i + 6]
+            for i in range(0, len(expected_colors_hex), 6)
+        ]
+        expected_colors = [
+            [int(c[i : i + 2], 16) / 255 for i in range(0, len(c), 2)]
+            for c in expected_colors_hex
+        ]
+
+        actual_colors = actual.cmap_model.get_sRGB(num=256)[0].tolist()
+
+        for i in range(len(expected_colors)):
+            for z in range(3):
+                # FIXME: The right-hand side of this comparison will always be 0.
+                # https://github.com/matplotlib/viscm/pull/66#discussion_r1213818015
+                assert actual_colors[i][z] == np.rint(expected_colors[i][z] / 256)
+                # Should the test look more like this?
+                # assert approxeq(
+                #     expected_colors[i][z],
+                #     actual_colors[i][z],
+                #     err=0.005,
+                # )
 
 
 # import matplotlib as mpl
