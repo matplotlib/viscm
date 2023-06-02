@@ -1,44 +1,36 @@
-# BézierBuilder
-#
-# Copyright (c) 2013, Juan Luis Cano Rodríguez <juanlu001@gmail.com>
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without modification,
-# are permitted provided that the following conditions are met:
-#
-#    * Redistributions of source code must retain the above copyright notice,
-#      this list of conditions and the following disclaimer.
-#    * Redistributions in binary form must reproduce the above copyright notice,
-#      this list of conditions and the following disclaimer in the documentation
-#      and/or other materials provided with the distribution.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER
-# OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
 """BézierBuilder, an interactive Bézier curve explorer.
 
-Just run it with
+Copyright (c) 2013, Juan Luis Cano Rodríguez <juanlu001@gmail.com>
+All rights reserved.
 
-$ python bezier_builder.py
+Redistribution and use in source and binary forms, with or without modification,
+are permitted provided that the following conditions are met:
 
+   * Redistributions of source code must retain the above copyright notice,
+     this list of conditions and the following disclaimer.
+   * Redistributions in binary form must reproduce the above copyright notice,
+     this list of conditions and the following disclaimer in the documentation
+     and/or other materials provided with the distribution.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER
+OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
-
-from math import factorial
 
 import numpy as np
 from matplotlib.backends.qt_compat import QtCore
 from matplotlib.lines import Line2D
 
-from .minimvc import Trigger
+from viscm.bezierbuilder.curve import curve_method
+from viscm.minimvc import Trigger
 
 
 class ControlPointModel:
@@ -193,7 +185,7 @@ def compute_arc_length(xp, yp, method, t=None, grid=256):
 
 class SingleBezierCurveModel:
     def __init__(self, control_point_model, method="CatmulClark"):
-        self.method = eval(method)
+        self.method = curve_method[method]
         self.control_point_model = control_point_model
         x, y = self.get_bezier_points()
         self.bezier_curve = Line2D(x, y)
@@ -215,7 +207,7 @@ class SingleBezierCurveModel:
 
 class TwoBezierCurveModel:
     def __init__(self, control_point_model, method="CatmulClark"):
-        self.method = eval(method)
+        self.method = curve_method[method]
         self.control_point_model = control_point_model
         x, y = self.get_bezier_points()
         self.bezier_curve = Line2D(x, y)
@@ -286,49 +278,3 @@ class BezierCurveView:
         x, y = self.bezier_curve_model.get_bezier_points()
         self.bezier_curve.set_data(x, y)
         self.canvas.draw()
-
-
-# We used to use scipy.special.binom here,
-# but reimplementing it ourself lets us avoid pulling in a dependency
-# scipy just for that one function.
-def binom(n, k):
-    return factorial(n) * 1.0 / (factorial(k) * factorial(n - k))
-
-
-def Bernstein(n, k):
-    """Bernstein polynomial."""
-    coeff = binom(n, k)
-
-    def _bpoly(x):
-        return coeff * x**k * (1 - x) ** (n - k)
-
-    return _bpoly
-
-
-def Bezier(points, at):
-    """Build Bézier curve from points.
-    Deprecated. CatmulClark builds nicer splines
-    """
-    at = np.asarray(at)
-    at_flat = at.ravel()
-    N = len(points)
-    curve = np.zeros((at_flat.shape[0], 2))
-    for ii in range(N):
-        curve += np.outer(Bernstein(N - 1, ii)(at_flat), points[ii])
-    return curve.reshape((*at.shape, 2))
-
-
-def CatmulClark(points, at):
-    points = np.asarray(points)
-
-    while len(points) < len(at):
-        new_p = np.zeros((2 * len(points), 2))
-        new_p[0] = points[0]
-        new_p[-1] = points[-1]
-        new_p[1:-2:2] = 3 / 4.0 * points[:-1] + 1 / 4.0 * points[1:]
-        new_p[2:-1:2] = 1 / 4.0 * points[:-1] + 3 / 4.0 * points[1:]
-        points = new_p
-    xp, yp = zip(*points)
-    xp = np.interp(at, np.linspace(0, 1, len(xp)), xp)
-    yp = np.interp(at, np.linspace(0, 1, len(yp)), yp)
-    return np.asarray(list(zip(xp, yp)))
