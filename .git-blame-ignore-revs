@@ -3,3 +3,6 @@
 
 # Applied `pre-commit` `end-of-file-fixer`
 e9104b3616899f54257bb38959d6e1c0acc70f6a
+
+# Applied `ruff` `pep8-naming` rules
+1eb35bbb81a8f3f72cf5c2cb44d3dd94d4c15c32
