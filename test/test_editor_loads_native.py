@@ -50,10 +50,7 @@ def test_editor_loads_native(colormap_file):
     colors_hex = data["colors"]
     colors_hex = [colors_hex[i : i + 6] for i in range(0, len(colors_hex), 6)]
     colors = [
-        # TODO: Should we divide by 255 here instead of 256? The tests pass with a
-        # lower value for `err` if we do.
-        [int(c[i : i + 2], 16) / 256 for i in range(0, len(c), 2)]
-        for c in colors_hex
+        [int(c[i : i + 2], 16) / 255 for i in range(0, len(c), 2)] for c in colors_hex
     ]
 
     editor_colors = viscm.cmap_model.get_sRGB(num=256)[0].tolist()
