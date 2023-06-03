@@ -1,2 +1,5 @@
 # Applied `ruff` and `black` (gh-64)
 1fec42d0baf90e00d510efd76cb6006fa0c70dc4
+
+# Applied `pre-commit` `end-of-file-fixer`
+e9104b3616899f54257bb38959d6e1c0acc70f6a
