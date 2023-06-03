@@ -1,3 +1,5 @@
+import warnings
+
 import numpy as np
 from scipy.special import binom
 
@@ -13,9 +15,13 @@ def Bernstein(n, k):
 
 
 def Bezier(points, at):
-    """Build Bézier curve from points.
-    Deprecated. CatmulClark builds nicer splines
-    """
+    """Build Bézier curve from points."""
+    warnings.warn(
+        message="Deprecated. CatmulClark builds nicer splines.",
+        category=FutureWarning,
+        stacklevel=1,
+    )
+
     at = np.asarray(at)
     at_flat = at.ravel()
     N = len(points)
