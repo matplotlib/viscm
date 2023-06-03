@@ -1,17 +1,5 @@
-from math import factorial
-
 import numpy as np
-
-
-def binom(n, k):
-    """Re-implement `scipy.special.binom`.
-
-    Reimplementing it ourself lets us avoid pulling in a dependency scipy just for that
-    one function.
-
-    FIXME: `scipy` is already a dependency. Delete this?
-    """
-    return factorial(n) * 1.0 / (factorial(k) * factorial(n - k))
+from scipy.special import binom
 
 
 def Bernstein(n, k):
