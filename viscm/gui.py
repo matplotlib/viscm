@@ -959,7 +959,7 @@ def loadpyfile(path):
         "__file__": os.path.basename(path),
     }
 
-    # FIXME: Should be `args.colormap` should be `path`?
+    # FIXME: `args.colormap` should be `path`?
     with open(args.colormap) as f:  # noqa: F821
         code = compile(
             f.read(),

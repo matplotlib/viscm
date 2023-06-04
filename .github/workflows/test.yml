@@ -26,10 +26,19 @@ jobs:
         with:
           python-version: "${{ matrix.python-version }}"
 
-      - name: "Install dependencies in pyproject.toml"
+      - name: "Install test and project dependencies"
         run: |
+          # Project dependencies from pyproject.toml
+          # NOTE: Also builds viscm. How do we avoid this?
           pip install .
-          pip install pytest pytest-cov ${{ matrix.pyqt-dependency }}
+
+          # Test dependencies
+          pip install pytest pytest-cov pytest-qt pytest-xvfb ${{ matrix.pyqt-dependency }}
+          # pytest-qt CI dependencies: https://pytest-qt.readthedocs.io/en/latest/troubleshooting.html#github-actions
+          sudo apt update
+          sudo apt install -y \
+            xvfb \
+            libxkbcommon-x11-0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-xinerama0 libxcb-xfixes0 x11-utils
 
       - name: "Run tests"
         run: "make test"
