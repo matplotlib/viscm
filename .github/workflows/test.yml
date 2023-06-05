@@ -42,3 +42,7 @@ jobs:
 
       - name: "Run tests"
         run: "make test"
+        env:
+          # In Pythons >= 3.10, tests fail with `RuntimeError: Invalid DISPLAY
+          # variable`, unless this variable is set:
+          MPLBACKEND: "Agg"

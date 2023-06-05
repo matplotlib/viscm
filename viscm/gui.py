@@ -1154,7 +1154,7 @@ class EditorWindow(QtWidgets.QMainWindow):
         self.max_slider = QtWidgets.QSlider(QtCore.Qt.Horizontal)
         self.max_slider.setMinimum(0)
         self.max_slider.setMaximum(100)
-        self.max_slider.setValue(viscm_editor.max_Jp)
+        self.max_slider.setValue(int(viscm_editor.max_Jp))
         self.max_slider.setTickPosition(QtWidgets.QSlider.TicksBelow)
         self.max_slider.setTickInterval(10)
         self.max_slider.valueChanged.connect(self.updatejp)
@@ -1164,7 +1164,7 @@ class EditorWindow(QtWidgets.QMainWindow):
         self.min_slider = QtWidgets.QSlider(QtCore.Qt.Horizontal)
         self.min_slider.setMinimum(0)
         self.min_slider.setMaximum(100)
-        self.min_slider.setValue(viscm_editor.min_Jp)
+        self.min_slider.setValue(int(viscm_editor.min_Jp))
         self.min_slider.setTickPosition(QtWidgets.QSlider.TicksBelow)
         self.min_slider.setTickInterval(10)
         self.min_slider.valueChanged.connect(self.updatejp)
@@ -1277,8 +1277,8 @@ class EditorWindow(QtWidgets.QMainWindow):
 
     def swapjp(self):
         jp1, jp2 = self.min_slider.value(), self.max_slider.value()
-        self.min_slider.setValue(jp2)
-        self.max_slider.setValue(jp1)
+        self.min_slider.setValue(int(jp2))
+        self.max_slider.setValue(int(jp1))
         self.updatejp()
 
     def updatejp(self):

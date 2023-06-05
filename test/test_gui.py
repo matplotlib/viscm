@@ -1,7 +1,5 @@
 from pathlib import Path
 
-import pytest
-
 from viscm.cli import _make_window
 
 
@@ -21,9 +19,6 @@ class TestGui:
 
         assert window.isVisible()
 
-    @pytest.mark.xfail(
-        reason="Unknown. See https://github.com/matplotlib/viscm/issues/71",
-    )
     def test_gui_edit_pyfile_opens(self, tests_data_dir: Path, qtbot):
         """Reproduce viridis from README instructions.
 
