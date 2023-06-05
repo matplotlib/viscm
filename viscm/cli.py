@@ -123,7 +123,7 @@ def _make_window(
     cmap_uniform_space: str,
     save: Union[Path, None],
     quit_immediately: bool,
-):
+) -> Union[gui.ViewerWindow, gui.EditorWindow]:
     # Hold a reference so it doesn't get GC'ed
     fig = plt.figure()
     figure_canvas = gui.FigureCanvas(fig)
@@ -132,6 +132,7 @@ def _make_window(
     if cmap:
         cm.load(cmap)
 
+    v: Union[gui.viscm, gui.viscm_editor]
     # Easter egg! I keep typing 'show' instead of 'view' so accept both
     if action in ("view", "show"):
         if cm is None:
