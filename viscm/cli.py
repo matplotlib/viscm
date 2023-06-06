@@ -1,4 +1,6 @@
 import sys
+from pathlib import Path
+from typing import Union
 
 import matplotlib.pyplot as plt
 
@@ -71,59 +73,31 @@ def cli():
         "--save",
         metavar="FILE",
         default=None,
-        help="Immediately save visualization to a file " "(view-mode only).",
+        help="Immediately save visualization to a file (view-mode only).",
     )
     parser.add_argument(
         "--quit",
         default=False,
         action="store_true",
-        help="Quit immediately after starting " "(useful with --save).",
+        help="Quit immediately after starting (useful with --save).",
     )
     args = parser.parse_args(argv)
 
-    cm = gui.Colormap(args.type, args.method, args.uniform_space)
     app = gui.QtWidgets.QApplication([])
 
-    if args.colormap:
-        cm.load(args.colormap)
-
-    # Easter egg! I keep typing 'show' instead of 'view' so accept both
-    if args.action in ("view", "show"):
-        if cm is None:
-            sys.exit("Please specify a colormap")
-        fig = plt.figure()
-        figure_canvas = gui.FigureCanvas(fig)
-        v = gui.viscm(cm.cmap, name=cm.name, figure=fig, uniform_space=cm.uniform_space)
-        mainwindow = gui.ViewerWindow(figure_canvas, v, cm.name)
-        if args.save is not None:
-            v.figure.set_size_inches(20, 12)
-            v.figure.savefig(args.save)
-    elif args.action == "edit":
-        if not cm.can_edit:
-            sys.exit("Sorry, I don't know how to edit the specified colormap")
-        # Hold a reference so it doesn't get GC'ed
-        fig = plt.figure()
-        figure_canvas = gui.FigureCanvas(fig)
-        v = gui.viscm_editor(
-            figure=fig,
-            uniform_space=cm.uniform_space,
-            cmtype=cm.cmtype,
-            method=cm.method,
-            **cm.params,
+    try:
+        mainwindow = _make_window(
+            action=args.action,
+            cmap=args.colormap,
+            cmap_type=args.type,
+            cmap_spline_method=args.method,
+            cmap_uniform_space=args.uniform_space,
+            save=Path(args.save) if args.save else None,
+            quit_immediately=args.quit,
         )
-        mainwindow = gui.EditorWindow(figure_canvas, v)
-    else:
-        raise RuntimeError("can't happen")
+    except Exception as e:
+        sys.exit(str(e))
 
-    if args.quit:
-        sys.exit()
-
-    figure_canvas.setSizePolicy(
-        gui.QtWidgets.QSizePolicy.Expanding, gui.QtWidgets.QSizePolicy.Expanding
-    )
-    figure_canvas.updateGeometry()
-
-    mainwindow.resize(800, 600)
     mainwindow.show()
 
     # PyQt messes up signal handling by default. Python signal handlers (e.g.,
@@ -138,6 +112,63 @@ def cli():
     signal.signal(signal.SIGINT, signal.SIG_DFL)
 
     app.exec_()
+
+
+def _make_window(
+    *,
+    action: str,
+    cmap: Union[str, None],
+    cmap_type: str,
+    cmap_spline_method: str,
+    cmap_uniform_space: str,
+    save: Union[Path, None],
+    quit_immediately: bool,
+):
+    # Hold a reference so it doesn't get GC'ed
+    fig = plt.figure()
+    figure_canvas = gui.FigureCanvas(fig)
+
+    cm = gui.Colormap(cmap_type, cmap_spline_method, cmap_uniform_space)
+    if cmap:
+        cm.load(cmap)
+
+    # Easter egg! I keep typing 'show' instead of 'view' so accept both
+    if action in ("view", "show"):
+        if cm is None:
+            raise RuntimeError("Please specify a colormap")
+
+        v = gui.viscm(cm.cmap, name=cm.name, figure=fig, uniform_space=cm.uniform_space)
+        window = gui.ViewerWindow(figure_canvas, v, cm.name)
+        if save is not None:
+            v.figure.set_size_inches(20, 12)
+            v.figure.savefig(str(save))
+    elif action == "edit":
+        if not cm.can_edit:
+            sys.exit("Sorry, I don't know how to edit the specified colormap")
+
+        v = gui.viscm_editor(
+            figure=fig,
+            uniform_space=cm.uniform_space,
+            cmtype=cm.cmtype,
+            method=cm.method,
+            **cm.params,
+        )
+        window = gui.EditorWindow(figure_canvas, v)
+    else:
+        raise RuntimeError(
+            "Action must be 'edit', 'view', or 'show'. This should never happen.",
+        )
+
+    if quit_immediately:
+        sys.exit()
+
+    figure_canvas.setSizePolicy(
+        gui.QtWidgets.QSizePolicy.Expanding, gui.QtWidgets.QSizePolicy.Expanding
+    )
+    figure_canvas.updateGeometry()
+
+    window.resize(800, 600)
+    return window
 
 
 if __name__ == "__main__":
