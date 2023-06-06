@@ -10,5 +10,11 @@ lint:
 	pre-commit run --all-files --show-diff-on-failure --color always
 
 
+.PHONY: typecheck
+typecheck:
+	mypy --version
+	mypy viscm
+
+
 .PHONY: ci
-ci: lint test
+ci: lint typecheck test

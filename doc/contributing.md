@@ -60,3 +60,12 @@ installed, GUI tests will be skipped. Install with:
 ```bash
 sudo apt install xvfb
 ```
+
+
+### Type check
+
+```bash
+make typecheck
+```
+
+Type checking requires `mypy`.

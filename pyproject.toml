@@ -45,6 +45,22 @@ packages = {find = {}}
 package-data = {viscm = ["examples/*"]}
 
 
+[tool.mypy]
+python_version = "3.8"
+
+# These libraries don't have type stubs. Mypy will see them as `Any` and not
+# throw an [import] error.
+[[tool.mypy.overrides]]
+module = [
+  "colorspacious",
+  "matplotlib.*",
+  "mpl_toolkits.*",
+  "scipy.*",
+]
+ignore_missing_imports = true
+
+
+
 [tool.black]
 target-version = ["py38", "py39", "py310", "py311"]
 
