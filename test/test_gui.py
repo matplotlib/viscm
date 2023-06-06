@@ -1,8 +1,17 @@
 from pathlib import Path
 
+import pytest
+import pytest_xvfb
+
 from viscm.cli import _make_window
 
+xvfb_installed = pytest_xvfb.xvfb_instance is not None
 
+
+@pytest.mark.skipif(
+    not xvfb_installed,
+    reason="Xvfb must be installed for this test.",
+)
 class TestGui:
     def test_gui_view_opens(self, qtbot):
         window = _make_window(

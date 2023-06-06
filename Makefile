@@ -1,7 +1,7 @@
 .PHONY: test
 test:
 	python -m pytest --version
-	python -m pytest --xvfb-backend=xvfb -v test/
+	python -m pytest -v test/
 
 
 .PHONY: lint 

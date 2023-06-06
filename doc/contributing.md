@@ -55,8 +55,7 @@ make test
 ```
 
 Unit tests require `xvfb` (X Virtual Framebuffer) to test the GUI. If `xvfb` is not
-installed, you'll receive `ERROR: xvfb backend xvfb requested but not installed`.
-Install with:
+installed, GUI tests will be skipped. Install with:
 
 ```bash
 sudo apt install xvfb
