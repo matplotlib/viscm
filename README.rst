@@ -3,16 +3,6 @@ viscm
 
 This is a little tool for analyzing colormaps and creating new colormaps.
 
-Try::
-
-  $ pip install viscm
-  $ python -m viscm view jet
-  $ python -m viscm edit
-
-There is some information available about how to interpret the
-resulting visualizations and use the editor tool `on this website
-<https://bids.github.io/colormap/>`_.
-
 Downloads:
   * https://pypi.python.org/pypi/viscm/
   * https://anaconda.org/conda-forge/viscm/
@@ -24,16 +14,44 @@ Contact:
   Nathaniel J. Smith <njs@pobox.com> and Stéfan van der Walt <stefanv@berkeley.edu>
 
 Dependencies:
-  * Python 3.8+
-  * `colorspacious <https://pypi.python.org/pypi/colorspacious>`_
-  * Matplotlib
-  * NumPy
+  * Python 3.9+
+  * `colorspacious <https://pypi.python.org/pypi/colorspacious>`_ 1.1+
+  * Matplotlib 3.5+
+  * NumPy 1.22+
+  * SciPy 1.8+
 
 License:
   MIT, see `LICENSE <LICENSE>`__ for details.
 
+
+Installation
+------------
+
+This is a GUI application, and requires Qt Python bindings.
+They can be provided by PyQt (GPL) or PySide (LGPL)::
+
+  $ pip install viscm[PySide]
+
+...or::
+
+  $ pip install viscm[PyQt]
+
+
+Usage
+-----
+
+::
+
+  $ viscm view jet
+  $ viscm edit
+
+There is some information available about how to interpret the
+resulting visualizations and use the editor tool `on this website
+<https://bids.github.io/colormap/>`_.
+
+
 Reproducing viridis
--------------------
+^^^^^^^^^^^^^^^^^^^
 
 Load [viridis AKA option_d.py](https://github.com/BIDS/colormap/) using:
 

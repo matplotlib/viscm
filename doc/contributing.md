@@ -22,6 +22,8 @@ python -m build
 pip install dist/*.whl  # or `dist/*.tar.gz`
 ```
 
+To automatically install a Qt dependency, try `pip install dist/<wheel_filename>[PyQt]`.
+
 
 ## Tests
 
