@@ -10,35 +10,27 @@ import json
 import os.path
 import sys
 
-import numpy as np
-
-# matplotlib.rcParams['backend'] = "QT4AGG"
-# Do this first before any other matplotlib imports, to force matplotlib to
-# use a Qt backend
-from matplotlib.backends.qt_compat import QtCore, QtGui, QtWidgets
-
-try:
-    from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
-except ImportError:
-    try:
-        from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-    except ImportError:
-        from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
-
 import matplotlib
 import matplotlib.colors
 import matplotlib.pyplot as plt
 import mpl_toolkits.mplot3d
+import numpy as np
 from colorspacious import (
     CIECAM02Space,
     CIECAM02Surround,
     cspace_convert,
     cspace_converter,
 )
+from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
+
+# matplotlib.rcParams['backend'] = "QtAgg"
+# Do this first before any other matplotlib imports, to force matplotlib to
+# use a Qt backend
+from matplotlib.backends.qt_compat import QtCore, QtGui, QtWidgets
 from matplotlib.colors import ListedColormap
 from matplotlib.gridspec import GridSpec
 
-from .minimvc import Trigger
+from viscm.minimvc import Trigger
 
 Qt = QtCore.Qt
 
