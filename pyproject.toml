@@ -24,8 +24,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-PySide = ["PySide2 ~=5.15"]
-PyQt = ["PyQt5 ~=5.15"]
+# Qt6 was released 2020.08.12
+PySide = ["PySide6"]
+PyQt = ["PyQt6"]
 
 [project.urls]
 repository = "https://github.com/matplotlib/viscm"

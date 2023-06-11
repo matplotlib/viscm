@@ -14,8 +14,8 @@ jobs:
           - "3.10"
           - "3.9"
         pyqt-dependency:
-          - "PyQt5"
-          - "PySide2"
+          - "PyQt6"
+          - "PySide6"
 
     steps:
       - uses: "actions/checkout@v3"
@@ -36,7 +36,7 @@ jobs:
           # pytest-qt CI dependencies: https://pytest-qt.readthedocs.io/en/latest/troubleshooting.html#github-actions
           sudo apt update
           sudo apt install -y \
-            xvfb \
+            xvfb libegl1 \
             libxkbcommon-x11-0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-xinerama0 libxcb-xfixes0 x11-utils
 
       - name: "Run tests"
