@@ -111,7 +111,7 @@ def cli():
 
     signal.signal(signal.SIGINT, signal.SIG_DFL)
 
-    app.exec_()
+    app.exec()
 
 
 def _make_window(
@@ -145,7 +145,7 @@ def _make_window(
             v.figure.savefig(str(save))
     elif action == "edit":
         if not cm.can_edit:
-            sys.exit("Sorry, I don't know how to edit the specified colormap")
+            raise RuntimeError("Sorry, I don't know how to edit the specified colormap")
 
         v = gui.viscm_editor(
             figure=fig,
@@ -164,7 +164,8 @@ def _make_window(
         sys.exit()
 
     figure_canvas.setSizePolicy(
-        gui.QtWidgets.QSizePolicy.Expanding, gui.QtWidgets.QSizePolicy.Expanding
+        gui.QtWidgets.QSizePolicy.Policy.Expanding,
+        gui.QtWidgets.QSizePolicy.Policy.Expanding,
     )
     figure_canvas.updateGeometry()
 

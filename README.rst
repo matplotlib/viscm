@@ -19,6 +19,7 @@ Dependencies:
   * Matplotlib 3.5+
   * NumPy 1.22+
   * SciPy 1.8+
+  * one of PyQt6, PySide6
 
 License:
   MIT, see `LICENSE <LICENSE>`__ for details.
