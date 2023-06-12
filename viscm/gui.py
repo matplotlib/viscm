@@ -109,7 +109,11 @@ def _setup_Jpapbp_axis(ax):
 # Adapt a matplotlib colormap to a linearly transformed version -- useful for
 # visualizing how colormaps look given color deficiency.
 # Kinda a hack, b/c we inherit from Colormap (this is required), but then
-# ignore its implementation entirely.
+# ignore its implementation entirely. This results in errors at runtime:
+#       File "/<env>/site-packages/matplotlib/artist.py", line 1343, in format_cursor_data  # noqa: E501
+#         n = self.cmap.N
+#             ^^^^^^^^^^^
+#     AttributeError: 'TransformedCMap' object has no attribute 'N'
 class TransformedCMap(matplotlib.colors.Colormap):
     def __init__(self, transform, base_cmap):
         self.transform = transform
