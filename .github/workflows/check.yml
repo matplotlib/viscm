@@ -1,7 +1,8 @@
 name: "Check with pre-commit"
 on:
-  - "push"
-  - "pull_request"
+  push:
+    branches: ["main"]
+  pull_request:
 
 jobs:
 
