@@ -10,35 +10,30 @@ import json
 import os.path
 import sys
 
-import numpy as np
-
-# matplotlib.rcParams['backend'] = "QT4AGG"
-# Do this first before any other matplotlib imports, to force matplotlib to
-# use a Qt backend
-from matplotlib.backends.qt_compat import QtCore, QtGui, QtWidgets, _getSaveFileName
-
-try:
-    from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
-except ImportError:
-    try:
-        from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-    except ImportError:
-        from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
-
 import matplotlib
 import matplotlib.colors
 import matplotlib.pyplot as plt
 import mpl_toolkits.mplot3d
+import numpy as np
 from colorspacious import (
     CIECAM02Space,
     CIECAM02Surround,
     cspace_convert,
     cspace_converter,
 )
+from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
+
+# matplotlib.rcParams['backend'] = "QtAgg"
+# Do this first before any other matplotlib imports, to force matplotlib to
+# use a Qt backend
+from matplotlib.backends.qt_compat import QtCore, QtGui, QtWidgets
 from matplotlib.colors import ListedColormap
 from matplotlib.gridspec import GridSpec
 
-from .minimvc import Trigger
+from viscm.minimvc import Trigger
+
+Qt = QtCore.Qt
+
 
 # The correct L_A value for the standard sRGB viewing conditions is:
 #   (64 / np.pi) / 5
@@ -114,7 +109,11 @@ def _setup_Jpapbp_axis(ax):
 # Adapt a matplotlib colormap to a linearly transformed version -- useful for
 # visualizing how colormaps look given color deficiency.
 # Kinda a hack, b/c we inherit from Colormap (this is required), but then
-# ignore its implementation entirely.
+# ignore its implementation entirely. This results in errors at runtime:
+#       File "/<env>/site-packages/matplotlib/artist.py", line 1343, in format_cursor_data  # noqa: E501
+#         n = self.cmap.N
+#             ^^^^^^^^^^^
+#     AttributeError: 'TransformedCMap' object has no attribute 'N'
 class TransformedCMap(matplotlib.colors.Colormap):
     def __init__(self, transform, base_cmap):
         self.transform = transform
@@ -1075,18 +1074,16 @@ def about():
 class ViewerWindow(QtWidgets.QMainWindow):
     def __init__(self, figurecanvas, viscm, cmapname, parent=None):
         QtWidgets.QMainWindow.__init__(self, parent)
-        self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
+        self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
         self.main_widget = QtWidgets.QWidget(self)
         self.cmapname = cmapname
 
         file_menu = QtWidgets.QMenu("&File", self)
-        file_menu.addAction("&Save", self.save, QtCore.Qt.CTRL + QtCore.Qt.Key_S)
-        file_menu.addAction("&Quit", self.fileQuit, QtCore.Qt.CTRL + QtCore.Qt.Key_Q)
+        file_menu.addAction("&Save", self.save).setShortcut("Ctrl+S")
+        file_menu.addAction("&Quit", self.fileQuit).setShortcut("Ctrl+Q")
 
         options_menu = QtWidgets.QMenu("&Options", self)
-        options_menu.addAction(
-            "&Toggle Gamut", self.toggle_gamut, QtCore.Qt.CTRL + QtCore.Qt.Key_G
-        )
+        options_menu.addAction("&Toggle Gamut", self.toggle_gamut).setShortcut("Ctrl+G")
 
         help_menu = QtWidgets.QMenu("&Help", self)
         help_menu.addAction("&About", about)
@@ -1116,7 +1113,8 @@ class ViewerWindow(QtWidgets.QMainWindow):
         self.fileQuit()
 
     def save(self):
-        fileName, _ = _getSaveFileName(
+        fileName, _ = QtWidgets.QFileDialog.getSaveFileName(
+            self,
             caption="Save file",
             directory=self.cmapname + ".png",
             filter="Image Files (*.png *.jpg *.bmp)",
@@ -1128,18 +1126,16 @@ class ViewerWindow(QtWidgets.QMainWindow):
 class EditorWindow(QtWidgets.QMainWindow):
     def __init__(self, figurecanvas, viscm_editor, parent=None):
         QtWidgets.QMainWindow.__init__(self, parent)
-        self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
+        self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
         self.viscm_editor = viscm_editor
 
         file_menu = QtWidgets.QMenu("&File", self)
-        file_menu.addAction("&Save", self.save, QtCore.Qt.CTRL + QtCore.Qt.Key_S)
+        file_menu.addAction("&Save", self.save).setShortcut("Ctrl+S")
         file_menu.addAction("&Export .py", self.export)
-        file_menu.addAction("&Quit", self.fileQuit, QtCore.Qt.CTRL + QtCore.Qt.Key_Q)
+        file_menu.addAction("&Quit", self.fileQuit).setShortcut("Ctrl+Q")
 
         options_menu = QtWidgets.QMenu("&Options", self)
-        options_menu.addAction(
-            "&Load in Viewer", self.loadviewer, QtCore.Qt.CTRL + QtCore.Qt.Key_V
-        )
+        options_menu.addAction("&Load in Viewer", self.loadviewer).setShortcut("Ctrl+V")
 
         help_menu = QtWidgets.QMenu("&Help", self)
         help_menu.addAction("&About", about)
@@ -1151,21 +1147,21 @@ class EditorWindow(QtWidgets.QMainWindow):
 
         self.main_widget = QtWidgets.QWidget(self)
 
-        self.max_slider = QtWidgets.QSlider(QtCore.Qt.Horizontal)
+        self.max_slider = QtWidgets.QSlider(Qt.Orientation.Horizontal)
         self.max_slider.setMinimum(0)
         self.max_slider.setMaximum(100)
         self.max_slider.setValue(int(viscm_editor.max_Jp))
-        self.max_slider.setTickPosition(QtWidgets.QSlider.TicksBelow)
+        self.max_slider.setTickPosition(QtWidgets.QSlider.TickPosition.TicksBelow)
         self.max_slider.setTickInterval(10)
         self.max_slider.valueChanged.connect(self.updatejp)
         self.max_slider_num = QtWidgets.QLabel(str(viscm_editor.max_Jp))
         self.max_slider_num.setFixedWidth(30)
 
-        self.min_slider = QtWidgets.QSlider(QtCore.Qt.Horizontal)
+        self.min_slider = QtWidgets.QSlider(Qt.Orientation.Horizontal)
         self.min_slider.setMinimum(0)
         self.min_slider.setMaximum(100)
         self.min_slider.setValue(int(viscm_editor.min_Jp))
-        self.min_slider.setTickPosition(QtWidgets.QSlider.TicksBelow)
+        self.min_slider.setTickPosition(QtWidgets.QSlider.TickPosition.TicksBelow)
         self.min_slider.setTickInterval(10)
         self.min_slider.valueChanged.connect(self.updatejp)
         self.min_slider_num = QtWidgets.QLabel(str(viscm_editor.min_Jp))
@@ -1189,7 +1185,7 @@ class EditorWindow(QtWidgets.QMainWindow):
         mainlayout.addLayout(min_slider_layout)
 
         if viscm_editor.cmtype == "diverging":
-            smoothness_slider = QtWidgets.QSlider(QtCore.Qt.Horizontal)
+            smoothness_slider = QtWidgets.QSlider(Qt.Horizontal)
             # We want the slider to vary filter_k exponentially between 5 and
             # 1000. So it should go from [log10(5), log10(1000)]
             # which is about [0.699, 3.0]
@@ -1206,7 +1202,7 @@ class EditorWindow(QtWidgets.QMainWindow):
             metrics = QtGui.QFontMetrics(smoothness_slider_num.font())
             max_width = metrics.width("1000.00")
             smoothness_slider_num.setFixedWidth(max_width)
-            smoothness_slider_num.setAlignment(QtCore.Qt.AlignRight)
+            smoothness_slider_num.setAlignment(Qt.AlignRight)
             self.smoothness_slider_num = smoothness_slider_num
 
             smoothness_slider_layout = QtWidgets.QHBoxLayout()
@@ -1221,41 +1217,32 @@ class EditorWindow(QtWidgets.QMainWindow):
                 self.update_smoothness_slider
             )
 
-        self.moveAction = QtWidgets.QAction("Drag points", self)
+        self.toolbar = self.addToolBar("Tools")
+        self.moveAction = self.toolbar.addAction("Drag points")
         self.moveAction.triggered.connect(self.set_move_mode)
         self.moveAction.setCheckable(True)
-
-        self.addAction = QtWidgets.QAction("Add points", self)
+        self.addAction = self.toolbar.addAction("Add points")
         self.addAction.triggered.connect(self.set_add_mode)
         self.addAction.setCheckable(True)
-
-        self.removeAction = QtWidgets.QAction("Remove points", self)
+        self.removeAction = self.toolbar.addAction("Remove points")
         self.removeAction.triggered.connect(self.set_remove_mode)
         self.removeAction.setCheckable(True)
 
-        self.swapAction = QtWidgets.QAction("Flip brightness", self)
+        self.toolbar.addSeparator()
+        self.swapAction = self.toolbar.addAction("Flip brightness")
         self.swapAction.triggered.connect(self.swapjp)
-        renameAction = QtWidgets.QAction("Rename colormap", self)
+
+        self.toolbar.addSeparator()
+        renameAction = self.toolbar.addAction("Rename colormap")
         renameAction.triggered.connect(self.rename)
-
-        saveAction = QtWidgets.QAction("Save", self)
+        saveAction = self.toolbar.addAction("Save")
         saveAction.triggered.connect(self.save)
-
-        self.toolbar = self.addToolBar("Tools")
-        self.toolbar.addAction(self.moveAction)
-        self.toolbar.addAction(self.addAction)
-        self.toolbar.addAction(self.removeAction)
-        self.toolbar.addSeparator()
-        self.toolbar.addAction(self.swapAction)
-        self.toolbar.addSeparator()
-        self.toolbar.addAction(renameAction)
-        self.toolbar.addAction(saveAction)
 
         self.moveAction.setChecked(True)
 
         self.main_widget.setFocus()
         figurecanvas.setFocus()
-        figurecanvas.setFocusPolicy(QtCore.Qt.StrongFocus)
+        figurecanvas.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         self.setCentralWidget(self.main_widget)
 
     def rename(self):
@@ -1304,7 +1291,8 @@ class EditorWindow(QtWidgets.QMainWindow):
         self.viscm_editor.bezier_builder.mode = "remove"
 
     def export(self):
-        fileName, _ = _getSaveFileName(
+        fileName, _ = QtWidgets.QFileDialog.getSaveFileName(
+            self,
             caption="Export file",
             directory=self.viscm_editor.name + ".py",
             filter=".py (*.py)",
@@ -1319,7 +1307,8 @@ class EditorWindow(QtWidgets.QMainWindow):
         self.fileQuit()
 
     def save(self):
-        fileName, _ = _getSaveFileName(
+        fileName, _ = QtWidgets.QFileDialog.getSaveFileName(
+            self,
             caption="Save file",
             directory=self.viscm_editor.name + ".jscm",
             filter="JSCM Files (*.jscm)",
@@ -1334,7 +1323,8 @@ class EditorWindow(QtWidgets.QMainWindow):
         v = viscm(cm, name=self.viscm_editor.name, figure=newfig)
 
         newcanvas.setSizePolicy(
-            QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding
+            QtWidgets.QSizePolicy.Policy.Expanding,
+            QtWidgets.QSizePolicy.Policy.Expanding,
         )
         newcanvas.updateGeometry()
 

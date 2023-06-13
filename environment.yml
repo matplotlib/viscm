@@ -9,6 +9,7 @@ dependencies:
   - "matplotlib ~=3.7"
   - "colorspacious ~=1.1"
   - "scipy ~=1.10"
+  - "PySide6"
 
   # Development
   - "mypy ~=1.3.0"
