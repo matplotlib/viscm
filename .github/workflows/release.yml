@@ -1,0 +1,29 @@
+name: "Release"
+on:
+  release:
+    types:
+      - "published"
+
+jobs:
+
+  build-and-release:
+    runs-on: "ubuntu-latest"
+    steps:
+      - uses: "actions/checkout@v3"
+
+      - name: "Set up Python"
+        uses: "actions/setup-python@v4"
+        with:
+          python-version: "3.9"
+
+      - name: "Install build tool"
+        run: "pip install --user build"
+
+      - name: "Build binary dist (wheel) and source dist"
+        run: "python -m build"
+
+      - name: "Publish to PyPI"
+        uses: "pypa/gh-action-pypi-publish@release/v1"
+        with:
+          password: "${{ secrets.PYPI_TOKEN }}"
+          repository-url: "https://pypi.org/project/viscm"

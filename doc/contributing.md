@@ -71,3 +71,13 @@ make typecheck
 ```
 
 Type checking requires `mypy`.
+
+
+## Making a release and publishing to PyPI
+
+Create a release using the GitHub user interface. Tag the version following
+[semver](https://semver.org). *NOTE: As this software is pre-1.x, always increment the
+minor version only.*
+
+Once the release is published in GitHub, a GitHub Action will be triggered to build and
+upload to PyPI.
