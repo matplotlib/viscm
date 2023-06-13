@@ -1,0 +1,23 @@
+changelog:
+  exclude:
+    labels:
+      - "releasenotes-ignore"
+  categories:
+    - title: "New features"
+      labels:
+        - "enhancement"
+    - title: "Bug fixes"
+      labels:
+        - "bug"
+    - title: "CI"
+      labels:
+        - "ci"
+    - title: "Documentation"
+      labels:
+        - "documentation"
+    - title: "Dependency updates"
+      labels:
+        - "dependencies"
+    - title: "Other changes"
+      labels:
+        - "*"
