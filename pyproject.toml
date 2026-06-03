@@ -17,7 +17,7 @@ classifiers = [
 
 requires-python = ">=3.12"
 dependencies = [
-  "numpy >=1.22",
+  "numpy >=1.26",
   "matplotlib >=3.5",
   "colorspacious >=1.1",
   "scipy >=1.8",
